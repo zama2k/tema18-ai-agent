@@ -257,6 +257,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    logging.getLogger("httpx2").setLevel(logging.WARNING)  # one INFO line per HTTP call is noise
     try:
         settings = load_settings()
         cases = load_dataset(args.dataset)
