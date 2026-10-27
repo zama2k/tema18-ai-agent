@@ -1,5 +1,7 @@
 # Requisito del enunciado -> dónde se cumple
 
+Evidencias de las ejecuciones en GitHub Actions: [evidencias/github/README.md](../evidencias/github/README.md).
+
 Enunciado: `Prompts.Clase18.md` (cinco bloques y cinco prompts que forman un único proyecto).
 Las desviaciones están marcadas con **(D)** y justificadas en la última columna o en
 [decisiones.md](decisiones.md).
@@ -59,16 +61,16 @@ Las desviaciones están marcadas con **(D)** y justificadas en la última column
 | Python 3.11, `requirements-dev.txt` | pasos del job |
 | `pytest tests/integration/test_llm_quality.py -m integration -x --tb=long -v --timeout=60` | paso "Run LLM quality tests" |
 | Secretos inyectados | `env:` del paso (no del job) con `AZURE_OPENAI_*`, `TAVILY_API_KEY`, `AWS_*` opcionales, `AWS_DEFAULT_REGION` por defecto `us-east-1` |
-| `quality-gate` incluye `llm-quality-tests` y reporta su resultado | `needs` del job y tabla en `$GITHUB_STEP_SUMMARY` |
+| `quality-gate` incluye `llm-quality-tests` y reporta su resultado | `needs` del job y tabla en `$GITHUB_STEP_SUMMARY`. ✔ Falló de verdad con el juez bloqueado ([run 40490403569](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490403569)) y pasa tras el arreglo ([run 40491358729](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491358729)) |
 | Extra: evaluación con juez, informe en el summary y artefacto | pasos "Run LLM-as-a-judge evaluation", "Publish evaluation report" |
 
 ## Bloque 4: CD con blue/green
 
 | Requisito | Dónde | Notas |
 |---|---|---|
-| `workflow_run` sobre "AI Agent CI", solo `main` y `success` | `cd.yml` (`on` + `if` de `prepare`) | |
+| `workflow_run` sobre "AI Agent CI", solo `main` y `success` | `cd.yml` (`on` + `if` de `prepare`) | ✔ Con CI en rojo se salta ([CD 40490745122](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490745122)); con CI en verde despliega ([CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352)) |
 | Despliega lo que pasó el CI | `github.event.workflow_run.head_sha` en todos los `checkout` | Mejora sobre el enunciado ("pull the latest code from main") |
-| Staging automático y producción con aprobación manual | `environment: staging` / `production` | El reviewer se configura en GitHub, ver README |
+| Staging automático y producción con aprobación manual | `environment: staging` / `production` | El reviewer se configura en GitHub, ver README. ✔ Producción esperó y fue aprobada por @zama2k en el [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352) |
 | SSH con clave temporal, **StrictHostKeyChecking=no** | `deploy/remote_deploy.sh` | **(D)** `StrictHostKeyChecking=yes` con `known_hosts` fijado: ver decisiones |
 | Lee `current_port` para saber qué servicio está activo (8000 / 8001) | `deploy/lib.sh::read_current_port`, `deploy/blue_green_deploy.sh` | |
 | Instala dependencias en un virtualenv | `blue_green_deploy.sh` (un venv por release) | El código es el del SHA exacto (`git archive`) |
@@ -81,7 +83,7 @@ Las desviaciones están marcadas con **(D)** y justificadas en la última column
 | Secretos `EC2_HOST`, `EC2_SSH_KEY`, `STAGING_URL`, `PROD_URL` | `cd.yml` | **(D)** sin EC2 se despliega a un host simulado (`deploy/host/`) |
 | `set -e` en los scripts | todos usan `set -euo pipefail` | |
 | Notificación final con hash corto y marca de tiempo | job `notify` + `deploy/notify_discord.sh` | Discord si hay `DISCORD_WEBHOOK_URL` |
-| Extra: simulacro de fallo | job `failure-drill` -> `deploy/test_blue_green_local.sh` | Una v3 rota no recibe tráfico |
+| Extra: simulacro de fallo | job `failure-drill` -> `deploy/test_blue_green_local.sh` | Una v3 rota no recibe tráfico. ✔ success en el [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352) |
 
 ## Bloque 5: monitorización
 

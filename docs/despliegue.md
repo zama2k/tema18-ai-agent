@@ -77,3 +77,5 @@ Después, en GitHub, crea los secretos de `staging` y `production` descritos en 
 ## Modo simulado en el CD
 
 Sin `EC2_HOST`/`EC2_SSH_KEY`, `run_deployment.sh` levanta el contenedor en el runner, instala primero una versión base (para que el cambio sea un cambio real y no un primer despliegue) y despliega después el SHA que pasó el CI. Lo avisa con `::notice::`. El job `failure-drill` ejecuta además el test completo de arriba contra ese mismo SHA.
+
+Así se ejecutó el [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352) de GitHub: staging y producción se desplegaron en el host simulado del runner (con `::notice::` en ambos jobs), no en un EC2. Ver [evidencias/github](../evidencias/github/README.md).

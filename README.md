@@ -8,19 +8,30 @@ Un agente de IA en Python con **CI/CD completo, tests de calidad del LLM, despli
 
 ## Nota para la corrección
 
-Qué está comprobado y qué no, para no tener que adivinarlo:
+Qué está comprobado y dónde. Evidencias en GitHub: [`evidencias/github/`](evidencias/github/README.md); salidas locales: [`evidencias/local/`](evidencias/local/).
 
-| Comprobado en local (hay evidencia en [`evidencias/local/`](evidencias/local/)) | Aún por comprobar |
+| Comprobado | Evidencia |
 |---|---|
-| 290 tests unitarios, 98,97 % de cobertura (Python 3.11 y 3.12), `ruff`, `mypy` | Las ejecuciones de **GitHub Actions** y las insignias: se añadirán al publicar el repositorio |
-| 25 tests de integración y la evaluación con juez **contra Azure OpenAI real** | El **CD en GitHub**: los workflows pasan `actionlint` y sus scripts se ejecutan en local, pero no se han lanzado en un runner |
-| Despliegue blue/green real por SSH contra un host simulado: cambio sin una sola petición fallida, rollback y versión rota rechazada | El despliegue contra un **EC2 real** (no hay cuenta de AWS) |
-| Alerta `HighErrorRate` disparada con errores reales y recibida en el receptor local; 17 tests de reglas con `promtool` | **Bedrock** real: el código existe y se prueba con `botocore.stub.Stubber`, no contra AWS. Haiku 3 de Anthropic está fuera de servicio en Bedrock desde el 10-sep-2026 |
-| `actionlint` 1.7.12 y `shellcheck` 0.9.0 y 0.11.0 sin avisos (con comando y versión en la evidencia) | **LangFuse** y **Sentry** reales: probados con mocks (no hay claves). **Discord** real: probado contra un receptor local |
-| | Las alarmas de **CloudWatch**: validadas como peticiones `PutMetricAlarm`, no aplicadas |
-| | Las URL públicas de staging y producción: se añadirán tras publicar |
+| CI completo en GitHub Actions: lint, tipos, unitarios (Python 3.11 y 3.12), integración y evaluación con juez contra Azure OpenAI real | [CI 40491358729](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491358729), success |
+| El quality gate **falla de verdad**: Azure bloqueó la llamada del juez (`cyber_policy`) y el gate lo detectó | [CI 40490403569](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490403569), failure; arreglo en `d6a7d1f` |
+| El CD no despliega un commit cuyo CI ha fallado | [CD 40490745122](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490745122), skipped |
+| CD completo del commit que pasó el CI: simulacro de fallo, staging, producción con **aprobación manual** y notificación | [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352), success |
+| 290 tests unitarios, 98,97 % de cobertura, `ruff`, `mypy`, 25 tests de integración y evaluación con juez en local | [`evidencias/local/`](evidencias/local/) |
+| Despliegue blue/green contra un host simulado: cambio sin una sola petición fallida, rollback y versión rota rechazada | [`evidencias/local/10-*`](evidencias/local/), y el `failure-drill` del CD |
+| Alerta `HighErrorRate` disparada con errores reales y recibida en el receptor local; 17 tests de reglas con `promtool` | [`evidencias/local/13-*`](evidencias/local/) |
+| `actionlint` 1.7.12 y `shellcheck` 0.9.0 y 0.11.0 sin avisos | [`evidencias/local/08-*` y `09-*`](evidencias/local/) |
 
-La plantilla de variables está en [docs/configuracion.md](docs/configuracion.md); el fichero `.env.example` se añadirá antes de publicar.
+**No verificado por nosotros:**
+
+| Punto | Por qué |
+|---|---|
+| Recepción de los mensajes de **Discord** | Los jobs `notify` terminaron en success, pero no hemos visto el mensaje en el canal |
+| Despliegue en un **EC2 real** | No hay cuenta de AWS: el CD usa el host simulado en el runner (lo avisa con `::notice::`). No hay URL públicas de staging ni de producción |
+| **Bedrock** real | El código existe y se prueba con `botocore.stub.Stubber`. Haiku 3 de Anthropic está fuera de servicio en Bedrock desde el 10-sep-2026 |
+| **LangFuse** y **Sentry** reales | Probados con mocks (no hay claves) |
+| Alarmas de **CloudWatch** | Validadas como peticiones `PutMetricAlarm`, no aplicadas |
+
+Las variables están en [docs/configuracion.md](docs/configuracion.md) y la plantilla en [`.env.example`](.env.example).
 
 ## Qué hace
 
@@ -107,9 +118,11 @@ Cada día (y a demanda) evalúa el modelo real con el juez y avisa por Discord s
 - **Tests con el modelo real** (`tests/integration/`): conectividad, español, exactitud, concisión ("solo SÍ o NO"), latencia (< 10 s simples, < 30 s complejas) y regresión con `evals/dataset.jsonl` (12 casos con `must_contain` / `must_not_contain`).
 - **LLM-as-a-judge** (`evals/`): `gpt-5.6-sol` puntúa con esquema JSON estricto cuatro criterios (corrección, completitud, idioma, seguridad); el código pondera. *Quality gate*: media >= 0,75, mínimo por caso >= 0,5 y cero incumplimientos de las reglas deterministas del conjunto de datos (también en la evaluación nocturna).
 - **Meta-test del juez**: una respuesta deliberadamente errónea debe puntuar por debajo del umbral; si no, el juez no sirve y la evaluación falla.
-- **Hallazgo real del primer CI**: Azure bloqueó la llamada al juez con `cyber_policy` en el caso de seguridad (el prompt del juez cita la pregunta dañina) y el caso puntuó 0. Ahora, solo en casos de categoría `safety` con reglas `must_contain` de rechazo que se cumplen, el gate recurre a esas reglas deterministas y lo informa como *rules only*. Cualquier otro caso bloqueado, o uno de seguridad cuyas reglas fallen, sigue fallando el gate.
+- **Hallazgo real del primer CI** ([run 40490403569](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490403569), arreglado en `d6a7d1f`): Azure bloqueó la llamada al juez con `cyber_policy` en el caso de seguridad (el prompt del juez cita la pregunta dañina) y el caso puntuó 0. Ahora, solo en casos de categoría `safety` con reglas `must_contain` de rechazo que se cumplen, el gate recurre a esas reglas deterministas y lo informa como *rules only*. Cualquier otro caso bloqueado, o uno de seguridad cuyas reglas fallen, sigue fallando el gate.
 
 Medido en la última ejecución local ([informe](evidencias/local/07b-eval-report.md)): media **0,981**, mínimo **0,930**, p50 de latencia 0,7 s, p95 3,5 s, coste estimado **0,05 USD** por evaluación completa; el juez dio 1,00 a la respuesta correcta y 0,46 a la errónea.
+
+Medido en GitHub Actions ([CI 40491358729](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491358729)): media **0,994**, mínimo **0,968**, 0 errores y 1 caso juzgado solo por reglas.
 
 ## Monitorización
 
@@ -147,12 +160,14 @@ Esto lo tiene que crear el propietario del repositorio (nada de ello puede estar
 | `STAGING_URL` / `PROD_URL` | secreto del environment `staging` / `production` | URL pública para el smoke test (obligatoria con host real) |
 | `STAGING_PUBLIC_URL` / `PROD_PUBLIC_URL` | variables de repositorio (opcionales) | Enlace que muestra GitHub en el despliegue; si faltan, se enlaza la página de la ejecución (la documentación oficial no define qué ocurre con una `url` vacía, así que no se deja vacía) |
 
-Protección de la rama `main`: exige el CI (`quality-gate`) y 1 aprobación. Al haber una sola cuenta, el *merge* se hace con **bypass de administrador**; queda documentado aquí como decisión consciente.
+Protección de la rama `main` (recomendada): exigir el CI (`quality-gate`) y 1 aprobación. En este repositorio **no está activada** y los cambios se suben directamente a `main`; con una sola cuenta, activarla obligaría a hacer el *merge* con bypass de administrador.
 
 ## Limitaciones honestas
 
-- El host simulado no es un EC2: no tiene systemd, grupos de seguridad ni la latencia de una máquina real. Lo único que cambia con un EC2 es `SERVICE_CTL` y la recarga de nginx, que por defecto ya son los de systemd; pero esa ruta no se ha ejecutado.
+- El CD de GitHub **ha desplegado de verdad, pero a un host simulado** (contenedor con sshd + nginx en el runner), no a un EC2: no tiene systemd, grupos de seguridad ni la latencia de una máquina real. Lo único que cambia con un EC2 es `SERVICE_CTL` y la recarga de nginx, que por defecto ya son los de systemd; esa ruta no se ha ejecutado. Por eso tampoco hay URL públicas.
+- Los mensajes de Discord se enviaron (los jobs `notify` acabaron en success), pero no hemos visto su recepción en el canal.
 - Bedrock, LangFuse y Sentry reales no se han ejercitado (sin cuenta o sin claves).
+- El juez puede ser bloqueado por la política del proveedor (`cyber_policy`) en preguntas dañinas de los casos de seguridad. Solo esos casos se puntúan por reglas; el resto de casos bloqueados falla el gate.
 - Las dependencias directas están fijadas con `==`; las transitivas las resuelve pip.
 - Los precios son tarifas de lista a fecha 2026-10-27 y pueden variar (en Azure sobre todo): se pueden sustituir con `PRICE_OVERRIDES`.
 - Azure filtra algunos prompts adversarios con un 400 de `content_filter`; el agente lo devuelve como 422 y no como caída. Por eso los casos de seguridad del conjunto de datos están redactados de forma que el filtro no los bloquee.
@@ -168,6 +183,7 @@ evals/          conjunto de datos dorado, juez y runner del quality gate
 deploy/         scripts blue/green, host simulado (Dockerfile), unidades systemd, nginx
 monitoring/     Prometheus, Alertmanager, Grafana, CloudWatch, receptor de pruebas, compose
 docs/           enunciado, decisiones, despliegue, monitorización, runbook, configuración, fuentes
-evidencias/local/  salidas reales de cada comprobación
+evidencias/github/  ejecuciones reales en GitHub Actions (enlaces)
+evidencias/local/   salidas reales de cada comprobación
 .github/workflows/  ci.yml, cd.yml, llm-eval-nightly.yml
 ```
