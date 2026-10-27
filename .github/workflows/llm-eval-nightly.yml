@@ -1,0 +1,85 @@
+# Semantic monitoring: a daily LLM-as-a-judge evaluation against the real model.
+# Latency and error rates can look perfect while answers silently get worse (model updates,
+# prompt drift, tool failures); this job catches that and alerts Discord.
+name: LLM Eval Nightly
+
+on:
+  schedule:
+    - cron: "17 5 * * *" # daily, 05:17 UTC (off the hour to avoid the scheduler rush)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llm-eval-nightly
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: evaluate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run the evaluation
+        id: eval
+        # The gate result is handled below so the alert and the report are always produced.
+        continue-on-error: true
+        run: python -m evals.run_eval --out evals/reports
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          CHAT_MODEL: ${{ vars.CHAT_MODEL || 'gpt-4o-mini' }}
+          JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'gpt-5.6-sol' }}
+          EVAL_MEAN_THRESHOLD: ${{ vars.EVAL_MEAN_THRESHOLD || '0.75' }}
+          EVAL_MIN_THRESHOLD: ${{ vars.EVAL_MIN_THRESHOLD || '0.5' }}
+          GIT_SHA: ${{ github.sha }}
+      - name: Publish report
+        if: always()
+        run: |
+          if [ -f evals/reports/eval-report.md ]; then
+            cat evals/reports/eval-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "The evaluation produced no report (infrastructure error)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: llm-eval-nightly-report
+          path: evals/reports/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Alert Discord when quality drops
+        if: steps.eval.outcome != 'success'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          body="The daily LLM-as-a-judge evaluation did not pass."
+          if [ -f evals/reports/latest.json ]; then
+            score="$(python -c 'import json; print(json.load(open("evals/reports/latest.json"))["mean_score"])')"
+            body="${body} Mean score: ${score}."
+          else
+            body="${body} No report was produced (check credentials or quota)."
+          fi
+          MESSAGE_TITLE="LLM quality alert" MESSAGE_BODY="${body}
+          ${RUN_URL}" bash deploy/notify_discord.sh
+      - name: Fail the run when the gate failed
+        if: steps.eval.outcome != 'success'
+        run: |
+          echo "::error::LLM quality gate failed or the evaluation could not run."
+          exit 1

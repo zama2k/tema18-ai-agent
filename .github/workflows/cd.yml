@@ -1,0 +1,168 @@
+# AI Agent CD: deploys the exact commit that passed CI, blue/green over SSH.
+#
+# Host selection: if the EC2_HOST and EC2_SSH_KEY secrets exist, the release goes to that real
+# host. Otherwise the same scripts deploy to a simulated host (a container with sshd + nginx +
+# an agentctl that imitates systemctl), so the pipeline is fully exercised without an EC2.
+name: AI Agent CD
+
+on:
+  workflow_run:
+    workflows: ["AI Agent CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # The commit that PASSED CI. Never "the latest main": main may have moved since.
+  RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+
+jobs:
+  prepare:
+    name: prepare
+    # Only successful CI runs triggered by a push to main (not PRs, not failures).
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      timestamp: ${{ steps.meta.outputs.timestamp }}
+    steps:
+      - name: Resolve deployment metadata
+        id: meta
+        run: |
+          {
+            echo "sha=$RELEASE_SHA"
+            echo "short_sha=${RELEASE_SHA:0:7}"
+            echo "timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Deploying commit ${RELEASE_SHA:0:7} (CI run ${{ github.event.workflow_run.id }})" >> "$GITHUB_STEP_SUMMARY"
+
+  failure-drill:
+    name: failure-drill (broken release keeps the old version serving)
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the commit that passed CI
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+      - name: Run the blue/green drill on the simulated host
+        env:
+          RELEASE_REF: ${{ needs.prepare.outputs.sha }}
+        run: |
+          set -o pipefail
+          bash deploy/test_blue_green_local.sh 2>&1 | tee drill.log
+          {
+            echo "### Failure drill"
+            echo '```'
+            grep -E '^(PASS|FAIL|probe:)' drill.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-staging:
+    name: deploy-staging
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_PUBLIC_URL }}
+    # Deployments are never cancelled halfway: a newer run waits for this one to finish.
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - name: Check out the commit that passed CI
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+      - name: Deploy and smoke test
+        env:
+          DEPLOY_ENVIRONMENT: staging
+          RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_PORT: ${{ secrets.EC2_PORT }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+          TARGET_URL: ${{ secrets.STAGING_URL }}
+        run: bash deploy/run_deployment.sh
+
+  deploy-production:
+    name: deploy-production
+    needs: [prepare, deploy-staging, failure-drill]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Manual approval: the "production" environment has required reviewers.
+    environment:
+      name: production
+      url: ${{ vars.PROD_PUBLIC_URL }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Check out the commit that passed CI
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+      - name: Deploy, verify /health + /chat + /metrics, roll back on failure
+        env:
+          DEPLOY_ENVIRONMENT: production
+          RELEASE_SHA: ${{ needs.prepare.outputs.sha }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_PORT: ${{ secrets.EC2_PORT }}
+          EC2_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+          TARGET_URL: ${{ secrets.PROD_URL }}
+        run: bash deploy/run_deployment.sh
+
+  notify:
+    name: notify
+    needs: [prepare, failure-drill, deploy-staging, deploy-production]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out the notification script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+          persist-credentials: false
+      - name: Log and announce the deployment
+        env:
+          SHORT_SHA: ${{ needs.prepare.outputs.short_sha }}
+          STARTED: ${{ needs.prepare.outputs.timestamp }}
+          DRILL: ${{ needs.failure-drill.result }}
+          STAGING: ${{ needs.deploy-staging.result }}
+          PRODUCTION: ${{ needs.deploy-production.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          finished="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [ "$STAGING" = "success" ] && [ "$PRODUCTION" = "success" ] && [ "$DRILL" = "success" ]; then
+            verdict="deployed to production"
+          else
+            verdict="NOT fully deployed (drill=$DRILL staging=$STAGING production=$PRODUCTION)"
+          fi
+          echo "Deployment of ${SHORT_SHA}: ${verdict} (started ${STARTED}, finished ${finished})"
+          {
+            echo "### Deployment ${SHORT_SHA}"
+            echo "- Result: ${verdict}"
+            echo "- Started: ${STARTED} | finished: ${finished}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          MESSAGE_TITLE="AI Agent ${SHORT_SHA}: ${verdict}" \
+          MESSAGE_BODY="started ${STARTED}, finished ${finished}
+          ${RUN_URL}" \
+            bash deploy/notify_discord.sh
