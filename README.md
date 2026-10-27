@@ -1,8 +1,8 @@
 # tema18-ai-agent
 
-[![AI Agent CI](https://github.com/__GH_OWNER__/tema18-ai-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/__GH_OWNER__/tema18-ai-agent/actions/workflows/ci.yml)
-[![AI Agent CD](https://github.com/__GH_OWNER__/tema18-ai-agent/actions/workflows/cd.yml/badge.svg)](https://github.com/__GH_OWNER__/tema18-ai-agent/actions/workflows/cd.yml)
-[![LLM Eval Nightly](https://github.com/__GH_OWNER__/tema18-ai-agent/actions/workflows/llm-eval-nightly.yml/badge.svg)](https://github.com/__GH_OWNER__/tema18-ai-agent/actions/workflows/llm-eval-nightly.yml)
+[![AI Agent CI](https://github.com/zama2k/tema18-ai-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/zama2k/tema18-ai-agent/actions/workflows/ci.yml)
+[![AI Agent CD](https://github.com/zama2k/tema18-ai-agent/actions/workflows/cd.yml/badge.svg)](https://github.com/zama2k/tema18-ai-agent/actions/workflows/cd.yml)
+[![LLM Eval Nightly](https://github.com/zama2k/tema18-ai-agent/actions/workflows/llm-eval-nightly.yml/badge.svg)](https://github.com/zama2k/tema18-ai-agent/actions/workflows/llm-eval-nightly.yml)
 
 Un agente de IA en Python con **CI/CD completo, tests de calidad del LLM, despliegue blue/green por SSH y monitorización en tres capas**. Ejercicio 2 del Tema 18 (CI/CD + Monitoring en producción).
 
