@@ -15,7 +15,8 @@ Qué está comprobado y dónde. Evidencias en GitHub: [`evidencias/github/`](evi
 | CI completo en GitHub Actions: lint, tipos, unitarios (Python 3.11 y 3.12), integración y evaluación con juez contra Azure OpenAI real | [CI 40491358729](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491358729), success |
 | El quality gate **falla de verdad**: Azure bloqueó la llamada del juez (`cyber_policy`) y el gate lo detectó | [CI 40490403569](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490403569), failure; arreglo en `d6a7d1f` |
 | El CD no despliega un commit cuyo CI ha fallado | [CD 40490745122](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490745122), skipped |
-| CD completo del commit que pasó el CI: simulacro de fallo, staging, producción con **aprobación manual** y notificación | [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352), success |
+| CD completo del commit que pasó el CI: simulacro de fallo, staging, producción con **aprobación manual** y notificación | [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352), success. Mismo flujo en el commit de documentación `a7d46d3`: [CD 40522939162](https://github.com/zama2k/tema18-ai-agent/actions/runs/40522939162), success |
+| Mensaje de **Discord** del despliegue a producción de `d6a7d1f` | Recepción confirmada con captura del canal `#deploys` aportada por el autor (12:54). Detalle en [`evidencias/github/`](evidencias/github/README.md#recepción-en-discord) |
 | 290 tests unitarios, 98,97 % de cobertura, `ruff`, `mypy`, 25 tests de integración y evaluación con juez en local | [`evidencias/local/`](evidencias/local/) |
 | Despliegue blue/green contra un host simulado: cambio sin una sola petición fallida, rollback y versión rota rechazada | [`evidencias/local/10-*`](evidencias/local/), y el `failure-drill` del CD |
 | Alerta `HighErrorRate` disparada con errores reales y recibida en el receptor local; 17 tests de reglas con `promtool` | [`evidencias/local/13-*`](evidencias/local/) |
@@ -25,7 +26,7 @@ Qué está comprobado y dónde. Evidencias en GitHub: [`evidencias/github/`](evi
 
 | Punto | Por qué |
 |---|---|
-| Recepción de los mensajes de **Discord** | Los jobs `notify` terminaron en success, pero no hemos visto el mensaje en el canal |
+| Mensaje de **Discord** del CD 40522939162 (`a7d46d3`) | Se aprobó después de la captura del canal: su mensaje es posterior y no está verificado por captura (el job `notify` terminó en success) |
 | Despliegue en un **EC2 real** | No hay cuenta de AWS: el CD usa el host simulado en el runner (lo avisa con `::notice::`). No hay URL públicas de staging ni de producción |
 | **Bedrock** real | El código existe y se prueba con `botocore.stub.Stubber`. Haiku 3 de Anthropic está fuera de servicio en Bedrock desde el 10-sep-2026 |
 | **LangFuse** y **Sentry** reales | Probados con mocks (no hay claves) |
@@ -165,7 +166,7 @@ Protección de la rama `main` (recomendada): exigir el CI (`quality-gate`) y 1 a
 ## Limitaciones honestas
 
 - El CD de GitHub **ha desplegado de verdad, pero a un host simulado** (contenedor con sshd + nginx en el runner), no a un EC2: no tiene systemd, grupos de seguridad ni la latencia de una máquina real. Lo único que cambia con un EC2 es `SERVICE_CTL` y la recarga de nginx, que por defecto ya son los de systemd; esa ruta no se ha ejecutado. Por eso tampoco hay URL públicas.
-- Los mensajes de Discord se enviaron (los jobs `notify` acabaron en success), pero no hemos visto su recepción en el canal.
+- Discord: el aviso de producción de `d6a7d1f` está verificado con la captura del canal aportada por el autor (no está como fichero en el repositorio; se transcribe en `evidencias/github/`). El del CD de `a7d46d3` es posterior a la captura y no está verificado. El formato es texto con enlace, distinto de los embeds del Ejercicio 1 y del Reto.
 - Bedrock, LangFuse y Sentry reales no se han ejercitado (sin cuenta o sin claves).
 - El juez puede ser bloqueado por la política del proveedor (`cyber_policy`) en preguntas dañinas de los casos de seguridad. Solo esos casos se puntúan por reglas; el resto de casos bloqueados falla el gate.
 - Las dependencias directas están fijadas con `==`; las transitivas las resuelve pip.

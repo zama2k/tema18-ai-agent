@@ -14,6 +14,8 @@ Repositorio: <https://github.com/zama2k/tema18-ai-agent>
 | CD completo del commit que pasó el CI | [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352) | `d6a7d1f` | success (5 jobs) |
 | Aprobación manual de producción | mismo [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352) | `d6a7d1f` | aprobado por @zama2k en el environment `production` |
 | Despliegues registrados por GitHub | [Environments](https://github.com/zama2k/tema18-ai-agent/deployments) | `d6a7d1f` | `staging` y `production` |
+| CI del push de documentación | [CI 40522514701](https://github.com/zama2k/tema18-ai-agent/actions/runs/40522514701) | `a7d46d3` | success |
+| CD de ese commit, con aprobación manual de producción | [CD 40522939162](https://github.com/zama2k/tema18-ai-agent/actions/runs/40522939162) | `a7d46d3` | success (5 jobs, `notify` incluido); producción aprobada por @zama2k |
 
 ## Hallazgo real: el juez bloqueado por la política del proveedor
 
@@ -49,13 +51,31 @@ Se dispara solo por `workflow_run` del CI en `main` y despliega `head_sha`: el c
 | `failure-drill` | success | Simulacro blue/green: una release rota no recibe tráfico y la versión anterior sigue sirviendo; `smoke_test --full` acepta el commit servido y rechaza otro |
 | `deploy-staging` | success | Despliegue blue/green y smoke test |
 | `deploy-production` | success | Esperó la aprobación de @zama2k (*"Aprobado tras revisar staging y el simulacro de fallo"*); `smoke_test --full` (`/health`, `/chat`, `/metrics`) |
-| `notify` | success | Registro del despliegue y mensaje a Discord enviado |
+| `notify` | success | Registro del despliegue y mensaje a Discord enviado; recibido a las 12:54 |
+
+El [CD 40522939162](https://github.com/zama2k/tema18-ai-agent/actions/runs/40522939162) (commit `a7d46d3`, solo documentación) tiene los mismos 5 jobs en success, con producción aprobada por @zama2k.
+
+## Recepción en Discord
+
+**VERIFICADO:** recepción confirmada con captura del canal `#deploys` aportada por el autor (servidor `tema18-deploys`, 27-10-2026, hora local de España, UTC+1). La captura no está como fichero en el repositorio: se documenta por transcripción.
+
+Mensaje de este repositorio:
+
+| Hora | Bot | Mensaje | Corresponde a |
+|---|---|---|---|
+| 12:54 | AI Agent CI/CD | Texto «AI Agent d6a7d1f: deployed to production» con enlace al run 40491684352 (Discord lo muestra como tarjeta de enlace de GitHub) | [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352), commit `d6a7d1f` |
+
+Observaciones:
+
+- El aviso de producción de `d6a7d1f` llegó.
+- El CD 40522939162 (`a7d46d3`, push de documentación) se aprobó después de la captura. Su mensaje es posterior: no está verificado por captura.
+- Formato: este repositorio envía texto con enlace; el Ejercicio 1 y el Reto envían embeds. Son formatos distintos del mismo canal.
 
 ## Qué no es real
 
 | Punto | Estado |
 |---|---|
 | Host de despliegue | **Simulado**: no hay EC2. Los dos jobs de despliegue avisan con `::notice::` de que no hay `EC2_HOST`/`EC2_SSH_KEY` y usan el contenedor del runner. No existen URL públicas de staging ni de producción |
-| Recepción en Discord | Los jobs `notify` terminaron en success y el script registra "Discord notification sent." pero **no hemos visto** el mensaje en el canal |
+| Mensaje de Discord del CD 40522939162 | Se aprobó después de la captura del canal: su mensaje es posterior y **no está verificado por captura** (el job `notify` terminó en success) |
 | Protección de rama | `main` **no** tiene protección activa en este repositorio |
 | Bedrock, LangFuse y Sentry reales | No ejercitados (sin cuenta o sin claves) |
