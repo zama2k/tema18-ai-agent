@@ -19,7 +19,7 @@ Cada decisión sigue el mismo esquema: qué se eligió, por qué y qué se pierd
 - gpt-4o-mini juzgándose a sí mismo es indulgente. El juez es un modelo de razonamiento más capaz y distinto.
 - La puntuación global **no** la da el juez: devuelve cuatro criterios (corrección, completitud, idioma, seguridad) con esquema JSON estricto y el código los pondera (0,50 / 0,20 / 0,15 / 0,15).
 - Antes de usar al juez se comprueba que sirve: una respuesta deliberadamente errónea ("la capital de Francia es Madrid") debe puntuar por debajo del umbral y con corrección < 0,3. Si no, la evaluación completa se rechaza (`judge_selftest`).
-- Quality gate: media >= 0,75 y mínimo por caso >= 0,5 (variables `EVAL_MEAN_THRESHOLD` y `EVAL_MIN_THRESHOLD`).
+- Quality gate: media >= 0,75, mínimo por caso >= 0,5 (variables `EVAL_MEAN_THRESHOLD` y `EVAL_MIN_THRESHOLD`) **y ningún caso que incumpla sus reglas deterministas** (`must_contain` / `must_not_contain` / `max_words`). Un juez indulgente no puede tapar un fallo objetivo. Esto aplica también a la evaluación nocturna.
 
 ## 4. Un contenido de despliegue por commit: `git archive`, no `git pull`
 

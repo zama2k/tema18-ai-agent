@@ -255,6 +255,14 @@ class TestGate:
         assert "self-test" in summary["gate_failures"][0]
         assert summary["total_cost_usd"] == pytest.approx(0.013)
 
+    def test_rule_violations_fail_the_gate_even_with_a_high_judge_score(self) -> None:
+        results = [make_result("a", 1.0), make_result("b", 1.0, rule_problems=["missing"])]
+        summary = summarize(results, 0.75, 0.5, None)
+        assert summary["mean_score"] == 1.0
+        assert not summary["gate_passed"]
+        assert "deterministic rules violated in 1 case(s): b" in summary["gate_failures"]
+        assert summary["rule_failures"] == 1
+
     def test_errors_count_as_zero(self) -> None:
         errored = CaseResult(id="e", category="c", question="q", error="agent failed")
         summary = summarize([make_result("a", 1.0), errored], 0.75, 0.5, None)

@@ -89,6 +89,12 @@ def summarize(
     elif lowest < min_threshold:
         worst = min(results, key=lambda r: r.judge_score).id
         reasons.append(f"lowest case score {lowest:.3f} < {min_threshold} ({worst})")
+    rule_violations = [r.id for r in results if r.rule_problems]
+    if rule_violations:
+        reasons.append(
+            f"deterministic rules violated in {len(rule_violations)} case(s): "
+            + ", ".join(rule_violations)
+        )
     total_cost = sum(r.agent_cost_usd + r.judge_cost_usd for r in results)
     total_cost += selftest.cost_usd if selftest else 0.0
     return {
