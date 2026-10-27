@@ -6,8 +6,10 @@ missing the whole module is skipped with an explicit reason instead of failing.
 
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass
+from typing import NoReturn
 
 import pytest
 
@@ -17,15 +19,22 @@ from src.providers import AzureOpenAIProvider
 from src.tools import RAGTool
 
 
+def _unavailable(reason: str) -> NoReturn:
+    """Skip locally, but fail in CI (REQUIRE_LIVE_LLM=1) so a missing secret is never green."""
+    if os.environ.get("REQUIRE_LIVE_LLM") == "1":
+        pytest.fail(reason, pytrace=False)
+    pytest.skip(reason)
+
+
 @pytest.fixture(scope="session")
 def live_settings() -> Settings:
-    """Settings with real Azure credentials, or skip."""
+    """Settings with real Azure credentials; skip locally (fail in CI) when absent."""
     try:
         cfg = load_settings()
     except ConfigurationError as exc:
-        pytest.skip(f"Azure OpenAI credentials not available: {exc}")
+        _unavailable(f"Azure OpenAI credentials not available: {exc}")
     if cfg.llm_provider != "azure":
-        pytest.skip("integration tests need LLM_PROVIDER=azure")
+        _unavailable("integration tests need LLM_PROVIDER=azure")
     return cfg
 
 

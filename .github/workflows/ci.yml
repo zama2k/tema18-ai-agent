@@ -1,0 +1,262 @@
+# AI Agent CI: lint + type-check -> unit tests -> LLM tests (main only) -> quality gate.
+name: AI Agent CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege by default; no job needs more than read access to the repository.
+permissions:
+  contents: read
+
+# A newer push to the same ref/PR supersedes the running CI. (Deployments, in cd.yml, never cancel.)
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Ruff lint
+        run: ruff check .
+      - name: Ruff format check
+        run: ruff format --check .
+
+  type-check:
+    name: type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Mypy
+        run: mypy src/ --ignore-missing-imports
+
+  unit-tests:
+    name: unit-tests (py${{ matrix.python-version }})
+    needs: [lint, type-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run unit tests with coverage gate
+        run: >-
+          pytest tests/unit -v
+          --cov=src --cov-report=term-missing:skip-covered --cov-report=xml
+          --cov-fail-under=80
+      - name: Coverage summary
+        if: always()
+        env:
+          PY_VERSION: ${{ matrix.python-version }}
+        run: |
+          {
+            echo "### Coverage (Python $PY_VERSION)"
+            coverage report --format=markdown --skip-covered || true
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-py${{ matrix.python-version }}
+          path: coverage.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+  integration-tests:
+    name: integration-tests
+    needs: [unit-tests]
+    # Real API calls cost money: only after a merge to main, never on PRs or other branches.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run API integration tests
+        run: pytest tests/integration/test_api.py -m integration -x --tb=long -v --timeout=60
+        env:
+          # Secrets exist only in this step. Missing credentials fail the job instead of skipping.
+          REQUIRE_LIVE_LLM: "1"
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          CHAT_MODEL: ${{ vars.CHAT_MODEL || 'gpt-4o-mini' }}
+          JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'gpt-5.6-sol' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
+
+  llm-quality-tests:
+    name: llm-quality-tests
+    needs: [unit-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      # -x stops at the first failure so a broken model does not burn the rest of the budget.
+      - name: Run LLM quality tests
+        run: pytest tests/integration/test_llm_quality.py -m integration -x --tb=long -v --timeout=60
+        env:
+          REQUIRE_LIVE_LLM: "1"
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          CHAT_MODEL: ${{ vars.CHAT_MODEL || 'gpt-4o-mini' }}
+          JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'gpt-5.6-sol' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
+      - name: Run LLM-as-a-judge evaluation (quality gate)
+        run: python -m evals.run_eval --out evals/reports
+        env:
+          AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          CHAT_MODEL: ${{ vars.CHAT_MODEL || 'gpt-4o-mini' }}
+          JUDGE_MODEL: ${{ vars.JUDGE_MODEL || 'gpt-5.6-sol' }}
+          GIT_SHA: ${{ github.sha }}
+      - name: Publish evaluation report
+        if: always()
+        run: |
+          if [ -f evals/reports/eval-report.md ]; then
+            cat evals/reports/eval-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No evaluation report was produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload evaluation report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: llm-eval-report
+          path: evals/reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+  quality-gate:
+    name: quality-gate
+    needs: [lint, type-check, unit-tests, integration-tests, llm-quality-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Evaluate pipeline result
+        env:
+          LINT: ${{ needs.lint.result }}
+          TYPES: ${{ needs.type-check.result }}
+          UNIT: ${{ needs.unit-tests.result }}
+          INTEGRATION: ${{ needs.integration-tests.result }}
+          LLM: ${{ needs.llm-quality-tests.result }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          llm_expected=false
+          if [ "$EVENT" = "push" ] && [ "$REF" = "refs/heads/main" ]; then
+            llm_expected=true
+          fi
+          {
+            echo "## Quality gate"
+            echo
+            echo "| Stage | Result | Must run (push to main) |"
+            echo "|---|---|---|"
+            echo "| lint | $LINT | always |"
+            echo "| type-check | $TYPES | always |"
+            echo "| unit-tests (coverage >= 80%) | $UNIT | always |"
+            echo "| integration-tests | $INTEGRATION | $llm_expected |"
+            echo "| llm-quality-tests | $LLM | $llm_expected |"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          failed=0
+          for pair in "lint=$LINT" "type-check=$TYPES" "unit-tests=$UNIT"; do
+            if [ "${pair#*=}" != "success" ]; then
+              echo "::error::${pair%%=*} did not succeed (${pair#*=})"
+              failed=1
+            fi
+          done
+          for pair in "integration-tests=$INTEGRATION" "llm-quality-tests=$LLM"; do
+            name="${pair%%=*}"
+            result="${pair#*=}"
+            if [ "$llm_expected" = "true" ] && [ "$result" != "success" ]; then
+              echo "::error::$name must pass on main but was $result"
+              failed=1
+            elif [ "$llm_expected" = "false" ] && [ "$result" != "skipped" ] && [ "$result" != "success" ]; then
+              echo "::error::$name failed ($result)"
+              failed=1
+            fi
+          done
+          if [ "$llm_expected" = "false" ]; then
+            echo "LLM stages are skipped outside main on purpose (cost control)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "$failed" -ne 0 ]; then
+            echo "**Quality gate: FAILED**" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "**Quality gate: PASSED**" >> "$GITHUB_STEP_SUMMARY"
