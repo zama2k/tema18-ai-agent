@@ -14,7 +14,12 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from src.bedrock_format import build_bedrock_request, parse_bedrock_response
 from src.config import Settings
-from src.exceptions import ConfigurationError, ProviderError, ProviderTimeoutError
+from src.exceptions import (
+    ConfigurationError,
+    ContentFilteredError,
+    ProviderError,
+    ProviderTimeoutError,
+)
 from src.models import LLMResponse, Message, TokenUsage, ToolCall, ToolSchema
 
 logger = logging.getLogger(__name__)
@@ -112,6 +117,8 @@ class AzureOpenAIProvider(LLMProvider):
         except openai.APIConnectionError as exc:
             raise ProviderError("could not reach Azure OpenAI") from exc
         except openai.APIStatusError as exc:
+            if exc.status_code == 400 and getattr(exc, "code", None) == "content_filter":
+                raise ContentFilteredError("request blocked by the content filter") from exc
             raise ProviderError(
                 f"Azure OpenAI returned HTTP {exc.status_code}: {exc.message}"
             ) from exc

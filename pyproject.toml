@@ -32,7 +32,8 @@ markers = [
     "integration: calls real external APIs (Azure OpenAI, Tavily); needs credentials",
     "slow: takes more than 10 seconds",
 ]
-addopts = "-ra --strict-markers"
+# Integration tests are opt-in: run them with `-m integration`.
+addopts = "-ra --strict-markers -m 'not integration'"
 
 [tool.coverage.run]
 branch = true

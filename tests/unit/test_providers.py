@@ -15,7 +15,12 @@ from botocore.stub import ANY, Stubber
 
 from src.bedrock_format import build_bedrock_request
 from src.config import Settings
-from src.exceptions import ConfigurationError, ProviderError, ProviderTimeoutError
+from src.exceptions import (
+    ConfigurationError,
+    ContentFilteredError,
+    ProviderError,
+    ProviderTimeoutError,
+)
 from src.providers import (
     AzureOpenAIProvider,
     BedrockProvider,
@@ -144,6 +149,21 @@ class TestAzureProvider:
         fake = FakeAzure(httpx2.Response(429, json={"error": {"message": "slow down"}}))
         with pytest.raises(ProviderError, match="429"):
             await fake.provider().complete([{"role": "user", "content": "hi"}])
+
+    async def test_content_filter_is_a_distinct_error(self) -> None:
+        fake = FakeAzure(
+            httpx2.Response(
+                400, json={"error": {"code": "content_filter", "message": "blocked by policy"}}
+            )
+        )
+        with pytest.raises(ContentFilteredError):
+            await fake.provider().complete([{"role": "user", "content": "hi"}])
+
+    async def test_other_bad_requests_stay_generic(self) -> None:
+        fake = FakeAzure(httpx2.Response(400, json={"error": {"code": "invalid", "message": "x"}}))
+        with pytest.raises(ProviderError) as info:
+            await fake.provider().complete([{"role": "user", "content": "hi"}])
+        assert not isinstance(info.value, ContentFilteredError)
 
     async def test_timeout_becomes_provider_timeout(self) -> None:
         fake = FakeAzure(httpx2.ReadTimeout("slow"))

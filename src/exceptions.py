@@ -15,6 +15,10 @@ class ProviderError(AgentBaseException):
     """Raised when the LLM provider fails (network, quota, malformed answer)."""
 
 
+class ContentFilteredError(ProviderError):
+    """Raised when the platform content filter rejects the prompt or the completion."""
+
+
 class ProviderTimeoutError(ProviderError):
     """Raised when the LLM provider does not answer within the configured timeout."""
 

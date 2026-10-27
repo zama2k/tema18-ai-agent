@@ -13,7 +13,12 @@ from fastapi.testclient import TestClient
 from src.agent import AIAgent
 from src.api import create_app
 from src.config import Settings
-from src.exceptions import MaxIterationsError, ProviderError, ProviderTimeoutError
+from src.exceptions import (
+    ContentFilteredError,
+    MaxIterationsError,
+    ProviderError,
+    ProviderTimeoutError,
+)
 from src.observability import Metrics
 from src.providers import MockProvider
 from src.tools import Tool
@@ -92,6 +97,7 @@ class TestChat:
         ("exc", "status", "error_type"),
         [
             (ProviderTimeoutError("t"), 504, "timeout"),
+            (ContentFilteredError("cf"), 422, "content_filtered"),
             (MaxIterationsError("m"), 502, "max_iterations"),
             (ProviderError("secret upstream detail"), 502, "upstream_error"),
             (RuntimeError("secret internal detail"), 500, "internal_error"),

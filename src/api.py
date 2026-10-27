@@ -20,7 +20,12 @@ from pydantic import BaseModel, Field, field_validator
 
 from src.agent import AIAgent, route_message
 from src.config import Settings, load_settings
-from src.exceptions import AgentBaseException, MaxIterationsError, ProviderTimeoutError
+from src.exceptions import (
+    AgentBaseException,
+    ContentFilteredError,
+    MaxIterationsError,
+    ProviderTimeoutError,
+)
 from src.observability import (
     Metrics,
     Tracer,
@@ -174,6 +179,9 @@ def create_app(
             app_metrics.record_error(route, "timeout")
             logger.error("llm timeout", extra={"error": str(exc)})
             return _error(504, "timeout", "The language model did not answer in time.")
+        except ContentFilteredError:
+            app_metrics.record_error(route, "content_filtered")
+            return _error(422, "content_filtered", "The request was blocked by the content policy.")
         except MaxIterationsError as exc:
             app_metrics.record_error(route, "max_iterations")
             logger.error("iteration cap", extra={"error": str(exc)})
