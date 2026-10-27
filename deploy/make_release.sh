@@ -29,8 +29,15 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/tree"
 
 if [ "$REF" = "WORKTREE" ]; then
-  (cd "$repo_root" && git ls-files -z --cached --others --exclude-standard | tar --null -T - -cf -) |
-    tar -xf - -C "$work/tree"
+  # Tracked files that were deleted in the working tree are still listed by git: skip them.
+  (
+    cd "$repo_root"
+    git ls-files -z --cached --others --exclude-standard |
+      while IFS= read -r -d '' path; do
+        if [ -e "$path" ]; then printf '%s\0' "$path"; fi
+      done |
+      tar --null -T - -cf -
+  ) | tar -xf - -C "$work/tree"
 else
   git -C "$repo_root" archive --format=tar "$REF" | tar -xf - -C "$work/tree"
 fi
