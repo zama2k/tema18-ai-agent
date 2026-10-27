@@ -16,6 +16,7 @@ from pytest_socket import SocketConnectBlockedError
 from src.config import Settings
 from src.models import TokenUsage
 from src.observability import (
+    MAX_TRACED_CHARS,
     JsonFormatter,
     LangfuseTracer,
     Metrics,
@@ -23,6 +24,8 @@ from src.observability import (
     configure_logging,
     create_tracer,
     init_sentry,
+    langfuse_mask,
+    mask_pii,
     request_id_var,
     scrub_event,
 )
@@ -223,6 +226,49 @@ class TestLangfuseTracer:
         client.flush.assert_called_once()
 
 
+class TestMaskPii:
+    """Everything sent to LangFuse goes through ``mask_pii``."""
+
+    @pytest.mark.parametrize(
+        ("raw", "forbidden"),
+        [
+            ("Escribe a ana.lopez@example.com por favor", "ana.lopez@example.com"),
+            ("Mi IBAN es ES91 2100 0418 4502 0005 1332", "2100 0418"),
+            ("Mi DNI es 12345678Z", "12345678Z"),
+            ("Mi NIE es X1234567L", "X1234567L"),
+            ("Llámame al +34 612 345 678", "612 345 678"),
+            ("Tarjeta 4111 1111 1111 1111", "4111 1111"),
+            ("usa la clave sk-abcdefghijklmnop1234", "sk-abcdefghijklmnop1234"),
+            ("Authorization: Bearer abcdef123456", "abcdef123456"),
+            ("password=hunter2hunter2", "hunter2hunter2"),
+        ],
+    )
+    def test_personal_data_and_secrets_are_redacted(self, raw: str, forbidden: str) -> None:
+        masked = mask_pii(raw)
+        assert forbidden not in masked
+        assert "[" in masked
+
+    def test_ordinary_text_and_short_numbers_survive(self) -> None:
+        text = "El 15 % de 80 es 12 y estamos en 2026-10-27"
+        assert mask_pii(text) == text
+
+    def test_long_text_is_truncated(self) -> None:
+        masked = mask_pii("a" * (MAX_TRACED_CHARS + 50))
+        assert len(masked) < MAX_TRACED_CHARS + 60 and masked.endswith("[truncated 50 chars]")
+
+    def test_nested_structures_are_masked_and_other_types_untouched(self) -> None:
+        data = {"messages": [{"role": "user", "content": "mi mail es a@b.co"}], "n": 3, "ok": True}
+        masked = mask_pii(data)
+        assert masked["messages"][0]["content"] == "mi mail es [EMAIL]"
+        assert masked["n"] == 3 and masked["ok"] is True
+        assert mask_pii(("a@b.co", None)) == ["[EMAIL]", None]
+
+    def test_langfuse_adapter_is_keyword_only(self) -> None:
+        assert langfuse_mask(data="a@b.co", extra="ignored") == "[EMAIL]"
+        with pytest.raises(TypeError):
+            langfuse_mask("a@b.co")  # type: ignore[misc]
+
+
 class TestCreateTracer:
     def test_noop_without_keys(self) -> None:
         tracer = create_tracer(make_settings())
@@ -244,6 +290,7 @@ class TestCreateTracer:
         assert kwargs["public_key"] == "pk-lf-1" and kwargs["secret_key"] == "sk-lf-1"
         assert kwargs["host"] == "https://cloud.langfuse.com"
         assert kwargs["environment"] == "staging"
+        assert kwargs["mask"] is langfuse_mask
 
     def test_default_factory_is_the_real_sdk_class(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Tracing disabled so no exporter thread talks to the network during the test.

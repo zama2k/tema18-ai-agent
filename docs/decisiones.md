@@ -68,7 +68,7 @@ Cada decisión sigue el mismo esquema: qué se eligió, por qué y qué se pierd
 - Logs JSON con `request_id` (contextvar, también en la cabecera `X-Request-ID`, validada para evitar inyección de logs).
 - Métricas con etiqueta `route` tomada de la **plantilla** de la ruta (`/chat`), no de la URL: una ráfaga de 404 no crea series infinitas.
 - Sentry con `data_collection` desactivado y `before_send` que elimina cuerpo, cookies, query y cabeceras sensibles (defensa en profundidad). Los mensajes del chat pueden contener datos personales y no se envían.
-- LangFuse (SDK actual, API de observaciones de la v3 en adelante) recibe trazas, generaciones, uso de tokens y coste. Cualquier fallo de LangFuse o Sentry se registra y se traga: la observabilidad nunca rompe una petición.
+- LangFuse (SDK actual, API de observaciones de la v3 en adelante) recibe trazas, generaciones, uso de tokens y coste, siempre a través de `mask_pii` (PII y secretos redactados, texto recortado a 2000 caracteres); los scores del juez los envía `evals/run_eval.py`. Cualquier fallo de LangFuse o Sentry se registra y se traga: la observabilidad nunca rompe una petición.
 - El filtro de contenido de Azure (HTTP 400 `content_filter`) se distingue de un fallo del proveedor y devuelve 422, no 502: no es una caída ni debe disparar la alerta de errores.
 
 ## 12. Dependencias: hallazgos

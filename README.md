@@ -115,7 +115,7 @@ Medido en la última ejecución local ([informe](evidencias/local/07b-eval-repor
 Tres capas (detalle en [docs/monitorizacion.md](docs/monitorizacion.md)):
 
 1. **Servicio:** `/metrics` (peticiones, latencia, errores, tokens, coste, calidad), logs JSON con `request_id`, Prometheus + Alertmanager + Grafana (`monitoring/`) y alarmas de CloudWatch para Lambda (`monitoring/cloudwatch/alarms.json`).
-2. **LLM:** LangFuse (trazas, generaciones, tokens, coste, puntuaciones), solo con claves.
+2. **LLM:** LangFuse (trazas, generaciones, tokens, coste; el texto se enmascara con `mask_pii` y la evaluación publica las puntuaciones del juez), solo con claves.
 3. **Errores:** Sentry sin PII, solo con DSN.
 
 Siete alertas (error rate > 5 %, P95 > 15 s, coste diario > 50 USD, calidad < 0,7, pico de tokens > 2x, error nuevo, caída) con [runbook](docs/runbook.md).

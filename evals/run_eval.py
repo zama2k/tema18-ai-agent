@@ -30,6 +30,7 @@ from evals.judge import Judge, JudgeError, SelfTestResult, judge_selftest
 from src.agent import AIAgent
 from src.config import Settings, load_settings
 from src.exceptions import AgentBaseException, ConfigurationError
+from src.observability import Tracer, create_tracer
 from src.providers import create_provider
 from src.tools import RAGTool
 
@@ -176,6 +177,30 @@ async def judge_case(judge: Judge, case: dict[str, Any], result: CaseResult) -> 
     result.judge_cost_usd = judged.cost_usd
 
 
+def publish_scores(
+    tracer: Tracer, cases: list[dict[str, Any]], results: list[CaseResult], mean_score: float
+) -> None:
+    """Send the judge scores to LangFuse (no-op without keys).
+
+    One trace per case carries ``judge_score`` and ``rule_failures``; a final trace carries the
+    run mean as ``eval_mean_score``. Text goes through ``mask_pii`` inside the tracer client.
+    """
+    for case, res in zip(cases, results, strict=True):
+        if res.error:
+            continue
+        with tracer.trace(
+            f"eval:{res.id}",
+            input=case["question"],
+            output=res.answer,
+            metadata={"category": res.category},
+        ):
+            tracer.score("judge_score", res.judge_score, comment=res.verdict.get("reasoning"))
+            tracer.score("rule_failures", float(len(res.rule_problems)))
+    with tracer.trace("eval:run", metadata={"cases": len(results)}):
+        tracer.score("eval_mean_score", mean_score)
+    tracer.flush()
+
+
 async def run_evaluation(
     settings: Settings,
     cases: list[dict[str, Any]],
@@ -195,7 +220,8 @@ async def run_evaluation(
     )
     judge = Judge(judge_client, settings.judge_model, settings.reasoning_headroom_tokens + 2000)
     # Deterministic tools only: the local RAG corpus. No web search in an evaluation.
-    agent = AIAgent(create_provider(settings), [RAGTool()], settings)
+    tracer = create_tracer(settings)  # no-op unless LANGFUSE_* keys are configured
+    agent = AIAgent(create_provider(settings), [RAGTool()], settings, tracer=tracer)
 
     selftest: SelfTestResult | None = None
     if run_selftest:
@@ -212,12 +238,15 @@ async def run_evaluation(
 
     await asyncio.gather(*(guarded(c, r) for c, r in zip(cases, results, strict=True)))
 
+    summary = summarize(results, mean_threshold, min_threshold, selftest)
+    publish_scores(tracer, cases, results, summary["mean_score"])
+
     return {
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "chat_model": settings.chat_model,
         "judge_model": settings.judge_model,
         "git_sha": settings.git_sha,
-        "summary": summarize(results, mean_threshold, min_threshold, selftest),
+        "summary": summary,
         "selftest": asdict(selftest) if selftest else None,
         "cases": [asdict(r) for r in results],
     }

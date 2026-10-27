@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -27,6 +29,7 @@ from evals.run_eval import (
     judge_case,
     main,
     percentile,
+    publish_scores,
     render_markdown,
     summarize,
     write_reports,
@@ -34,6 +37,7 @@ from evals.run_eval import (
 from src.agent import AIAgent
 from src.config import Settings
 from src.exceptions import ConfigurationError
+from src.observability import Tracer
 from tests.unit.conftest import ScriptedProvider, text_response
 
 
@@ -334,6 +338,79 @@ class TestReports:
         assert md_path.read_text(encoding="utf-8").startswith("## LLM quality gate")
         latest = json.loads((tmp_path / "out" / "latest.json").read_text(encoding="utf-8"))
         assert latest["mean_score"] == 0.65 and latest["gate_passed"] is False
+
+
+class SpyTracer(Tracer):
+    def __init__(self) -> None:
+        self.traces: list[str] = []
+        self.scores: list[tuple[str, float, str | None]] = []
+        self.flushed = False
+
+    @contextlib.contextmanager
+    def trace(self, name: str, **_: Any) -> Iterator[Any]:
+        self.traces.append(name)
+        with super().trace(name) as handle:
+            yield handle
+
+    def score(self, name: str, value: float, comment: str | None = None) -> None:
+        self.scores.append((name, value, comment))
+
+    def flush(self) -> None:
+        self.flushed = True
+
+
+class TestLangfuseScores:
+    CASES = [{"id": "a", "question": "q1"}, {"id": "b", "question": "q2"}]
+
+    def test_scores_are_sent_per_case_and_for_the_run(self) -> None:
+        results = [
+            make_result("a", 0.9, verdict={"reasoning": "good"}),
+            make_result("b", 0.4, rule_problems=["missing"]),
+        ]
+        spy = SpyTracer()
+        publish_scores(spy, self.CASES, results, 0.65)
+        assert spy.traces == ["eval:a", "eval:b", "eval:run"]
+        assert ("judge_score", 0.9, "good") in spy.scores
+        assert ("rule_failures", 1.0, None) in spy.scores
+        assert ("eval_mean_score", 0.65, None) in spy.scores
+        assert spy.flushed
+
+    def test_failed_cases_are_not_scored(self) -> None:
+        errored = CaseResult(id="a", category="c", question="q", error="agent failed")
+        spy = SpyTracer()
+        publish_scores(spy, self.CASES[:1], [errored], 0.0)
+        assert spy.traces == ["eval:run"]
+
+    def test_noop_tracer_is_accepted(self) -> None:
+        publish_scores(Tracer(), self.CASES[:1], [make_result("a", 1.0)], 1.0)
+
+    async def test_run_evaluation_publishes_when_langfuse_is_configured(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        spy = SpyTracer()
+        monkeypatch.setattr(run_eval, "create_tracer", lambda settings: spy)
+        completions = FakeCompletions([verdict_json()])
+        fake_client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+        monkeypatch.setattr(run_eval.openai, "AsyncOpenAI", lambda **_: fake_client)
+        settings = Settings(  # type: ignore[call-arg]
+            llm_provider="mock",
+            azure_openai_endpoint="https://example.test/openai/v1",
+            azure_openai_api_key="k",
+            _env_file=None,
+        )
+        case = {
+            "id": "france",
+            "category": "factual",
+            "question": "¿Cuál es la capital de Francia?",
+            "reference": "París",
+            "must_contain": ["París"],
+            "must_not_contain": [],
+        }
+        report = await run_eval.run_evaluation(settings, [case], 0.75, 0.5, run_selftest=False)
+        assert report["summary"]["gate_passed"]
+        # process_query is the agent's own trace; the eval traces come after it
+        assert spy.traces == ["process_query", "eval:france", "eval:run"]
+        assert ("eval_mean_score", 1.0, None) in spy.scores
 
 
 class TestCli:

@@ -15,6 +15,7 @@ import contextlib
 import json
 import logging
 import math
+import re
 import sys
 from collections.abc import Iterator
 from contextvars import ContextVar
@@ -293,6 +294,44 @@ class _GenerationHandle:
         )
 
 
+MAX_TRACED_CHARS = 2000
+_REDACTIONS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), "[EMAIL]"),
+    (re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,7}(?: ?[A-Z0-9]{1,4})?\b"), "[IBAN]"),
+    (re.compile(r"\b(?:\d{8}|[XYZ]\d{7})[A-Z]\b"), "[ID]"),
+    (re.compile(r"\b(?:sk|pk|tvly|AKIA)[-_A-Za-z0-9]{12,}"), "[SECRET]"),
+    (re.compile(r"(?i)\b(bearer|api[_-]?key|token|password)\b\s*[:=]?\s*\S{6,}"), r"\1 [SECRET]"),
+    (re.compile(r"(?<![\w.])\+?\d(?:[ .()-]?\d){8,}(?![\w])"), "[NUMBER]"),
+)
+
+
+def mask_pii(data: Any) -> Any:
+    """Redact personal data and secrets and cap the length of everything sent to LangFuse.
+
+    Strings are scrubbed (emails, IBANs, Spanish national ids, API-key-looking tokens, passwords
+    and any run of 9+ digits such as phones or card numbers) and truncated to
+    ``MAX_TRACED_CHARS``. Lists, tuples and dicts are processed recursively. This is a
+    best-effort filter, not a guarantee: free text can still hold names or addresses.
+    """
+    if isinstance(data, str):
+        text = data
+        for pattern, replacement in _REDACTIONS:
+            text = pattern.sub(replacement, text)
+        if len(text) > MAX_TRACED_CHARS:
+            text = f"{text[:MAX_TRACED_CHARS]}...[truncated {len(text) - MAX_TRACED_CHARS} chars]"
+        return text
+    if isinstance(data, dict):
+        return {key: mask_pii(value) for key, value in data.items()}
+    if isinstance(data, list | tuple):
+        return [mask_pii(item) for item in data]
+    return data
+
+
+def langfuse_mask(*, data: Any, **_: Any) -> Any:
+    """Adapter with the keyword-only signature that ``Langfuse(mask=...)`` expects."""
+    return mask_pii(data)
+
+
 def create_tracer(settings: Settings, langfuse_factory: Any | None = None) -> Tracer:
     """Return a LangFuse tracer if both keys are configured, otherwise a no-op tracer."""
     if not settings.langfuse_enabled:
@@ -308,6 +347,7 @@ def create_tracer(settings: Settings, langfuse_factory: Any | None = None) -> Tr
         host=settings.langfuse_host,
         environment=settings.app_env,
         release=settings.app_version,
+        mask=langfuse_mask,
     )
     return LangfuseTracer(client)
 
