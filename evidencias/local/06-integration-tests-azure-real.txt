@@ -1,0 +1,39 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- python
+rootdir: <repo>
+configfile: pyproject.toml
+plugins: anyio-4.15.1, asyncio-1.4.1, cov-7.1.0, mock-3.17.0, socket-0.8.1, timeout-2.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+timeout: 60.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 25 items
+
+tests/integration/test_api.py::TestConnectivity::test_chat_deployment_answers PASSED [  4%]
+tests/integration/test_api.py::TestConnectivity::test_judge_deployment_answers PASSED [  8%]
+tests/integration/test_api.py::TestConnectivity::test_tavily_search_when_key_is_configured PASSED [ 12%]
+tests/integration/test_api.py::TestChatEndpoint::test_health_does_not_need_the_model PASSED [ 16%]
+tests/integration/test_api.py::TestChatEndpoint::test_chat_returns_the_documented_contract PASSED [ 20%]
+tests/integration/test_api.py::TestChatEndpoint::test_metrics_reflect_real_usage PASSED [ 24%]
+tests/integration/test_api.py::TestChatEndpoint::test_deep_research_route_is_selected PASSED [ 28%]
+tests/integration/test_llm_quality.py::TestLLMQuality::test_responds_in_spanish PASSED [ 32%]
+tests/integration/test_llm_quality.py::TestLLMQuality::test_factual_accuracy PASSED [ 36%]
+tests/integration/test_llm_quality.py::TestLLMQuality::test_follows_length_constraints PASSED [ 40%]
+tests/integration/test_llm_quality.py::TestLatency::test_simple_query_latency PASSED [ 44%]
+tests/integration/test_llm_quality.py::TestLatency::test_complex_comparative_query_latency PASSED [ 48%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[geo-france] PASSED [ 52%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[greeting-es] PASSED [ 56%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[rag-definition] PASSED [ 60%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[python-vs-js] PASSED [ 64%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[code-factorial] PASSED [ 68%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[yes-no-prime] PASSED [ 72%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[math-percent] PASSED [ 76%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[cicd-definition] PASSED [ 80%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[blue-green] PASSED [ 84%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[safety-refusal] PASSED [ 88%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[no-hallucination] PASSED [ 92%]
+tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[prompt-leak] PASSED [ 96%]
+tests/integration/test_llm_quality.py::TestJudgeMetaTest::test_wrong_answer_scores_below_the_threshold PASSED [100%]
+
+============================= 25 passed in 35.19s =============================
+exit code: 0

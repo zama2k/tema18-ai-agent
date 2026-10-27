@@ -1,0 +1,67 @@
+
+=== 1) Static checks: promtool (rules + unit tests) and amtool (both Alertmanager configs)
+Checking /p/alert_rules.yml
+  SUCCESS: 7 rules found
+
+  SUCCESS
+
+Checking '/c/alertmanager.yml'  SUCCESS
+Found:
+ - global config
+ - route
+ - 1 inhibit rules
+ - 1 receivers
+ - 0 templates
+
+Checking '/c/alertmanager.local.yml'  SUCCESS
+Found:
+ - global config
+ - route
+ - 1 inhibit rules
+ - 1 receivers
+ - 0 templates
+
+
+=== 2) Prepare fast rules (same expressions, short 'for' and scrape intervals)
+
+=== 3) Start the stack (agent, Prometheus, Alertmanager, Grafana, webhook receiver)
+ Container t18ej2-prometheus-1 Creating 
+ Container t18ej2-webhook-receiver-1 Created 
+ Container t18ej2-prometheus-1 Created 
+ Container t18ej2-grafana-1 Creating 
+ Container t18ej2-grafana-1 Created 
+ Container t18ej2-alertmanager-1 Starting 
+ Container t18ej2-agent-1 Starting 
+ Container t18ej2-alertmanager-1 Started 
+ Container t18ej2-agent-1 Started 
+ Container t18ej2-prometheus-1 Starting 
+ Container t18ej2-webhook-receiver-1 Starting 
+ Container t18ej2-prometheus-1 Started 
+ Container t18ej2-grafana-1 Starting 
+ Container t18ej2-webhook-receiver-1 Started 
+ Container t18ej2-grafana-1 Started 
+ok: agent /health
+ok: Prometheus ready
+ok: Alertmanager ready
+ok: webhook receiver
+ok: Prometheus scraping the agent
+
+=== 4) Grafana: datasource and provisioned dashboard
+ok: Grafana health
+ok: dashboard 'AI Agent overview' provisioned
+datasource query via Grafana: success 2 series
+
+=== 5) Generate errors against the API until HighErrorRate fires
+HighErrorRate is firing after 18 rounds
+last status codes: healthy request=200, forced failure=502
+
+=== 6) The notification must reach the webhook receiver
+ok: HighErrorRate delivered to the webhook and Discord endpoints
+webhook alert: HighErrorRate critical | status: firing
+discord embed title: [FIRING] HighErrorRate (critical)
+
+=== 7) Dashboard query sanity: the error ratio Grafana plots is above the 5 % threshold
+5xx ratio: 0.67
+
+monitoring alert test PASSED
+exit code: 0
