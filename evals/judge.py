@@ -54,6 +54,28 @@ class JudgeError(Exception):
     """Raised when the judge cannot produce a valid verdict."""
 
 
+class JudgeBlockedError(JudgeError):
+    """The provider's safety layer rejected the judge call (HTTP 400 with a policy code).
+
+    Distinct from a plain ``JudgeError`` because it says nothing about answer quality: the
+    judge prompt quotes the question, and a harmful question can trip the provider's filter.
+    """
+
+    def __init__(self, code: str) -> None:
+        super().__init__(f"judge blocked by provider policy: {code}")
+        self.code = code
+
+
+def _policy_code(exc: openai.OpenAIError) -> str | None:
+    """Return the provider policy code when ``exc`` is a safety-layer rejection, else None."""
+    if not isinstance(exc, openai.BadRequestError):
+        return None
+    code = getattr(exc, "code", None)
+    if isinstance(code, str) and (code == "content_filter" or code.endswith("_policy")):
+        return code
+    return None
+
+
 class JudgeVerdict(BaseModel):
     """Structured verdict returned by the judge."""
 
@@ -96,6 +118,7 @@ class Judge:
         """Score one answer.
 
         Raises:
+            JudgeBlockedError: If the provider's safety layer rejects the judge call.
             JudgeError: If the call fails or the output does not match the schema twice.
         """
         user = (
@@ -128,6 +151,8 @@ class Judge:
                 logger.warning("judge returned an invalid verdict (attempt %d)", attempt)
                 continue
             except openai.OpenAIError as exc:
+                if (policy_code := _policy_code(exc)) is not None:
+                    raise JudgeBlockedError(policy_code) from exc
                 raise JudgeError(
                     f"judge call failed: {type(exc).__name__} {getattr(exc, 'code', '')}".strip()
                 ) from exc

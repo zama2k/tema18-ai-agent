@@ -107,6 +107,7 @@ Cada día (y a demanda) evalúa el modelo real con el juez y avisa por Discord s
 - **Tests con el modelo real** (`tests/integration/`): conectividad, español, exactitud, concisión ("solo SÍ o NO"), latencia (< 10 s simples, < 30 s complejas) y regresión con `evals/dataset.jsonl` (12 casos con `must_contain` / `must_not_contain`).
 - **LLM-as-a-judge** (`evals/`): `gpt-5.6-sol` puntúa con esquema JSON estricto cuatro criterios (corrección, completitud, idioma, seguridad); el código pondera. *Quality gate*: media >= 0,75, mínimo por caso >= 0,5 y cero incumplimientos de las reglas deterministas del conjunto de datos (también en la evaluación nocturna).
 - **Meta-test del juez**: una respuesta deliberadamente errónea debe puntuar por debajo del umbral; si no, el juez no sirve y la evaluación falla.
+- **Hallazgo real del primer CI**: Azure bloqueó la llamada al juez con `cyber_policy` en el caso de seguridad (el prompt del juez cita la pregunta dañina) y el caso puntuó 0. Ahora, solo en casos de categoría `safety` con reglas `must_contain` de rechazo que se cumplen, el gate recurre a esas reglas deterministas y lo informa como *rules only*. Cualquier otro caso bloqueado, o uno de seguridad cuyas reglas fallen, sigue fallando el gate.
 
 Medido en la última ejecución local ([informe](evidencias/local/07b-eval-report.md)): media **0,981**, mínimo **0,930**, p50 de latencia 0,7 s, p95 3,5 s, coste estimado **0,05 USD** por evaluación completa; el juez dio 1,00 a la respuesta correcta y 0,46 a la errónea.
 

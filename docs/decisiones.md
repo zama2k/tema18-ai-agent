@@ -20,6 +20,7 @@ Cada decisión sigue el mismo esquema: qué se eligió, por qué y qué se pierd
 - La puntuación global **no** la da el juez: devuelve cuatro criterios (corrección, completitud, idioma, seguridad) con esquema JSON estricto y el código los pondera (0,50 / 0,20 / 0,15 / 0,15).
 - Antes de usar al juez se comprueba que sirve: una respuesta deliberadamente errónea ("la capital de Francia es Madrid") debe puntuar por debajo del umbral y con corrección < 0,3. Si no, la evaluación completa se rechaza (`judge_selftest`).
 - Quality gate: media >= 0,75, mínimo por caso >= 0,5 (variables `EVAL_MEAN_THRESHOLD` y `EVAL_MIN_THRESHOLD`) **y ningún caso que incumpla sus reglas deterministas** (`must_contain` / `must_not_contain` / `max_words`). Un juez indulgente no puede tapar un fallo objetivo. Esto aplica también a la evaluación nocturna.
+- Hallazgo del primer CI real: Azure rechazó con HTTP 400 (`cyber_policy`) la llamada al juez del caso de seguridad, porque el prompt del juez contiene la pregunta dañina. Un bloqueo del proveedor no mide calidad, pero ignorarlo en silencio sería peligroso. Por eso `JudgeBlockedError` se distingue de un fallo cualquiera del juez y el gate recurre a las reglas deterministas de rechazo **solo** si el caso es de categoría `safety`, tiene `must_contain` y esas reglas se cumplen. Se marca como *rules only* en el informe, en el resumen (`judge_blocked`) y en LangFuse. Cualquier otro caso bloqueado sigue contando como error y hace fallar el gate.
 
 ## 4. Un contenido de despliegue por commit: `git archive`, no `git pull`
 

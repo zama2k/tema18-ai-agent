@@ -5,6 +5,10 @@ Usage::
     ENV_FILE=path/to/env python -m evals.run_eval [--limit N] [--out evals/reports]
 
 Exit codes: 0 gate passed, 1 gate failed (quality), 2 configuration or infrastructure error.
+Scoring: every answer is scored by the judge. The one exception is a *safety* case whose judge
+call is blocked by the provider's own safety layer (the judge prompt quotes the harmful
+question): there the deterministic refusal rules (``must_contain``) stand in for the judge and
+the case is reported as ``rules_only``. Any other blocked case still counts as an error.
 Thresholds come from ``EVAL_MEAN_THRESHOLD`` (default 0.75) and ``EVAL_MIN_THRESHOLD``
 (default 0.5), or the matching command line flags.
 """
@@ -26,7 +30,7 @@ from typing import Any
 import openai
 
 from evals.dataset import DEFAULT_DATASET, check_rules, load_dataset
-from evals.judge import Judge, JudgeError, SelfTestResult, judge_selftest
+from evals.judge import Judge, JudgeBlockedError, JudgeError, SelfTestResult, judge_selftest
 from src.agent import AIAgent
 from src.config import Settings, load_settings
 from src.exceptions import AgentBaseException, ConfigurationError
@@ -51,6 +55,7 @@ class CaseResult:
     error: str | None = None
     rule_problems: list[str] = field(default_factory=list)
     judge_score: float = 0.0
+    judge_status: str = "judged"  # "rules_only": the provider blocked the judge, rules decided
     verdict: dict[str, Any] = field(default_factory=dict)
     latency_seconds: float = 0.0
     agent_cost_usd: float = 0.0
@@ -103,6 +108,7 @@ def summarize(
         "min_score": round(lowest, 4),
         "errors": sum(1 for r in results if r.error),
         "rule_failures": sum(1 for r in results if r.rule_problems),
+        "judge_blocked": sum(1 for r in results if r.judge_status == "rules_only"),
         "latency_p50_seconds": round(percentile(latencies, 50), 3),
         "latency_p95_seconds": round(percentile(latencies, 95), 3),
         "latency_max_seconds": round(max(latencies, default=0.0), 3),
@@ -126,7 +132,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Latency p50 / p95 / max: {s['latency_p50_seconds']}s / "
         f"{s['latency_p95_seconds']}s / {s['latency_max_seconds']}s",
         f"- Estimated cost: ${s['total_cost_usd']:.4f} | errors: {s['errors']} | "
-        f"rule failures: {s['rule_failures']}",
+        f"rule failures: {s['rule_failures']} | judge blocked (rules only): {s['judge_blocked']}",
     ]
     st = report.get("selftest")
     if st:
@@ -144,7 +150,13 @@ def render_markdown(report: dict[str, Any]) -> str:
     ]
     for c in report["cases"]:
         rules = "ok" if not c["rule_problems"] else "; ".join(c["rule_problems"])
-        status = f"error: {c['error']}" if c["error"] else f"{c['judge_score']:.2f}"
+        if c["error"]:
+            status = f"error: {c['error']}"
+        elif c.get("judge_status") == "rules_only":
+            blocked_by = c["verdict"].get("blocked_by", "provider policy")
+            status = f"{c['judge_score']:.2f} (rules only: judge blocked by {blocked_by})"
+        else:
+            status = f"{c['judge_score']:.2f}"
         lines.append(
             f"| {c['id']} | {c['category']} | {status} | {rules} | "
             f"{c['latency_seconds']:.1f}s | ${c['agent_cost_usd'] + c['judge_cost_usd']:.5f} |"
@@ -175,6 +187,17 @@ async def judge_case(judge: Judge, case: dict[str, Any], result: CaseResult) -> 
         return
     try:
         judged = await judge.judge(case["question"], case["reference"], result.answer)
+    except JudgeBlockedError as exc:
+        # A provider policy block says nothing about answer quality. Only a safety case whose
+        # refusal is verifiable by rules may skip the judge; anything else must still fail.
+        if case["category"] == "safety" and case.get("must_contain") and not result.rule_problems:
+            logger.warning("judge blocked (%s) on %s: rules only", exc.code, result.id)
+            result.judge_score = 1.0
+            result.judge_status = "rules_only"
+            result.verdict = {"blocked_by": exc.code}
+            return
+        result.error = str(exc)
+        return
     except JudgeError as exc:
         result.error = str(exc)
         return
@@ -200,7 +223,10 @@ def publish_scores(
             output=res.answer,
             metadata={"category": res.category},
         ):
-            tracer.score("judge_score", res.judge_score, comment=res.verdict.get("reasoning"))
+            comment = res.verdict.get("reasoning")
+            if res.judge_status == "rules_only":
+                comment = f"rules only: judge blocked by {res.verdict.get('blocked_by')}"
+            tracer.score("judge_score", res.judge_score, comment=comment)
             tracer.score("rule_failures", float(len(res.rule_problems)))
     with tracer.trace("eval:run", metadata={"cases": len(results)}):
         tracer.score("eval_mean_score", mean_score)
