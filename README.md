@@ -17,7 +17,7 @@ Qué está comprobado y dónde. Evidencias en GitHub: [`evidencias/github/`](evi
 | El CD no despliega un commit cuyo CI ha fallado | [CD 40490745122](https://github.com/zama2k/tema18-ai-agent/actions/runs/40490745122), skipped |
 | CD completo del commit que pasó el CI: simulacro de fallo, staging, producción con **aprobación manual** y notificación | [CD 40491684352](https://github.com/zama2k/tema18-ai-agent/actions/runs/40491684352), success. Mismo flujo en el commit de documentación `a7d46d3`: [CD 40522939162](https://github.com/zama2k/tema18-ai-agent/actions/runs/40522939162), success |
 | Mensaje de **Discord** del despliegue a producción de `d6a7d1f` | Recepción confirmada con captura del canal `#deploys` aportada por el autor (12:54). Detalle en [`evidencias/github/`](evidencias/github/README.md#recepción-en-discord) |
-| 290 tests unitarios, 98,97 % de cobertura, `ruff`, `mypy`, 25 tests de integración y evaluación con juez en local | [`evidencias/local/`](evidencias/local/) |
+| 306 tests unitarios (290 en las evidencias locales, anteriores a los 16 del arreglo del juez), 98,97 % de cobertura, `ruff`, `mypy`, 25 tests de integración y evaluación con juez en local | [`evidencias/local/`](evidencias/local/) |
 | Despliegue blue/green contra un host simulado: cambio sin una sola petición fallida, rollback y versión rota rechazada | [`evidencias/local/10-*`](evidencias/local/), y el `failure-drill` del CD |
 | Alerta `HighErrorRate` disparada con errores reales y recibida en el receptor local; 17 tests de reglas con `promtool` | [`evidencias/local/13-*`](evidencias/local/) |
 | `actionlint` 1.7.12 y `shellcheck` 0.9.0 y 0.11.0 sin avisos | [`evidencias/local/08-*` y `09-*`](evidencias/local/) |
@@ -179,7 +179,7 @@ Protección de la rama `main` (recomendada): exigir el CI (`quality-gate`) y 1 a
 
 ```
 src/            agente, proveedores, herramientas, API, observabilidad, configuración, precios
-tests/unit/     290 tests deterministas      tests/integration/  tests contra el modelo real
+tests/unit/     306 tests deterministas      tests/integration/  tests contra el modelo real
 evals/          conjunto de datos dorado, juez y runner del quality gate
 deploy/         scripts blue/green, host simulado (Dockerfile), unidades systemd, nginx
 monitoring/     Prometheus, Alertmanager, Grafana, CloudWatch, receptor de pruebas, compose
