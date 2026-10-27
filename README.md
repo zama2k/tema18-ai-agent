@@ -144,7 +144,7 @@ Esto lo tiene que crear el propietario del repositorio (nada de ello puede estar
 | `EC2_HOST`, `EC2_SSH_KEY` | secretos de **environment** (`staging` y `production`, valores distintos) | Si existen, se despliega al host real; si no, al simulado |
 | `EC2_USER`, `EC2_PORT`, `EC2_KNOWN_HOSTS` | secretos de environment (opcionales) | Usuario (`deploy`), puerto (22) y claves de host fijadas |
 | `STAGING_URL` / `PROD_URL` | secreto del environment `staging` / `production` | URL pública para el smoke test (obligatoria con host real) |
-| `STAGING_PUBLIC_URL` / `PROD_PUBLIC_URL` | variables de repositorio (opcionales) | Enlace que muestra GitHub en el despliegue |
+| `STAGING_PUBLIC_URL` / `PROD_PUBLIC_URL` | variables de repositorio (opcionales) | Enlace que muestra GitHub en el despliegue; si faltan, se enlaza la página de la ejecución (la documentación oficial no define qué ocurre con una `url` vacía, así que no se deja vacía) |
 
 Protección de la rama `main`: exige el CI (`quality-gate`) y 1 aprobación. Al haber una sola cuenta, el *merge* se hace con **bypass de administrador**; queda documentado aquí como decisión consciente.
 

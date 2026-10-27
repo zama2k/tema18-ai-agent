@@ -48,7 +48,7 @@ Cada decisión sigue el mismo esquema: qué se eligió, por qué y qué se pierd
 ## 8. Despliegues sin cancelación, CI con cancelación
 
 - `ci.yml` cancela ejecuciones antiguas del mismo PR o rama (`cancel-in-progress: true`).
-- `cd.yml` usa un grupo por entorno con `cancel-in-progress: false`: matar un despliegue a medias es peor que esperar.
+- `cd.yml` usa un grupo por entorno con `cancel-in-progress: false`. La semántica real de GitHub es: por grupo hay **un job en curso y como mucho uno pendiente**. El job en curso nunca se cancela a medias. Si llega un tercero mientras hay uno pendiente, **el pendiente se cancela y gana el más reciente**. Consecuencia: un commit intermedio puede no llegar a desplegarse nunca, lo cual es aceptable porque cada despliegue lleva un commit completo y autocontenido.
 
 ## 9. Permisos y cadena de suministro
 

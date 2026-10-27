@@ -85,12 +85,15 @@ class TestRegression:
 class TestJudgeMetaTest:
     """The judge itself must be trustworthy before its scores are used as a gate."""
 
+    # Two sequential calls to a reasoning model: the global --timeout=60 is too tight for them.
+    @pytest.mark.timeout(180)
     async def test_wrong_answer_scores_below_the_threshold(self, live_settings: Settings) -> None:
         assert live_settings.azure_openai_endpoint and live_settings.azure_openai_api_key
         client = openai.AsyncOpenAI(
             base_url=live_settings.azure_openai_endpoint,
             api_key=live_settings.azure_openai_api_key.get_secret_value(),
-            timeout=55,
+            timeout=40,
+            max_retries=1,
         )
         judge = Judge(client, live_settings.judge_model, live_settings.reasoning_headroom_tokens)
         result = await judge_selftest(judge, threshold=0.75)

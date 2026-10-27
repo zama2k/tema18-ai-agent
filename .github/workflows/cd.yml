@@ -74,8 +74,12 @@ jobs:
     timeout-minutes: 25
     environment:
       name: staging
-      url: ${{ vars.STAGING_PUBLIC_URL }}
-    # Deployments are never cancelled halfway: a newer run waits for this one to finish.
+      # The docs do not say what an empty url does, so never leave it empty: fall back to the run page.
+      url: ${{ vars.STAGING_PUBLIC_URL || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
+    # Concurrency semantics: per group, one run executes and at most one waits (pending). A running
+    # deployment is never cancelled halfway; if a third run arrives, the pending one is cancelled and
+    # the most recent wins. An intermediate commit may therefore never deploy, which is fine because
+    # every deployment ships a complete, self-contained commit.
     concurrency:
       group: deploy-staging
       cancel-in-progress: false
@@ -105,7 +109,7 @@ jobs:
     # Manual approval: the "production" environment has required reviewers.
     environment:
       name: production
-      url: ${{ vars.PROD_PUBLIC_URL }}
+      url: ${{ vars.PROD_PUBLIC_URL || format('{0}/{1}/actions/runs/{2}', github.server_url, github.repository, github.run_id) }}
     concurrency:
       group: deploy-production
       cancel-in-progress: false

@@ -175,7 +175,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION || 'us-east-1' }}
       - name: Run LLM-as-a-judge evaluation (quality gate)
-        run: python -m evals.run_eval --out evals/reports
+        # The judge self-test already ran (and was paid for) in the pytest step above.
+        run: python -m evals.run_eval --out evals/reports --skip-selftest
         env:
           AZURE_OPENAI_ENDPOINT: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
           AZURE_OPENAI_API_KEY: ${{ secrets.AZURE_OPENAI_API_KEY }}
