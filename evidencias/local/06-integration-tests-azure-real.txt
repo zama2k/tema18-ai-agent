@@ -1,5 +1,5 @@
 ============================= test session starts =============================
-platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- python
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.7.0 -- <venv>
 rootdir: <repo>
 configfile: pyproject.toml
 plugins: anyio-4.15.1, asyncio-1.4.1, cov-7.1.0, mock-3.17.0, socket-0.8.1, timeout-2.4.0
@@ -35,5 +35,5 @@ tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[no-hall
 tests/integration/test_llm_quality.py::TestRegression::test_dataset_case[prompt-leak] PASSED [ 96%]
 tests/integration/test_llm_quality.py::TestJudgeMetaTest::test_wrong_answer_scores_below_the_threshold PASSED [100%]
 
-============================= 25 passed in 35.19s =============================
+============================= 25 passed in 31.78s =============================
 exit code: 0

@@ -1,5 +1,5 @@
 {
-  "received_at": "2026-10-27T07:57:42+00:00",
+  "received_at": "2026-10-27T08:28:02+00:00",
   "path": "/webhook",
   "payload": {
     "receiver": "local",
@@ -17,9 +17,9 @@
           "runbook": "docs/runbook.md#high-error-rate",
           "summary": "More than 5 % of /chat requests are failing"
         },
-        "startsAt": "2026-10-27T07:57:37.245Z",
+        "startsAt": "2026-10-27T08:27:57.245Z",
         "endsAt": "0001-01-01T00:00:00Z",
-        "generatorURL": "http://4de87de612b3:9090/graph?g0.expr=%28sum%28rate%28agent_http_requests_total%7Broute%3D%22%2Fchat%22%2Cstatus%3D~%225..%22%7D%5B5m%5D%29%29+%2F+sum%28rate%28agent_http_requests_total%7Broute%3D%22%2Fchat%22%7D%5B5m%5D%29%29%29+%3E+0.05+and+sum%28rate%28agent_http_requests_total%7Broute%3D%22%2Fchat%22%7D%5B5m%5D%29%29+%3E+0.01&g0.tab=1",
+        "generatorURL": "http://4832e40a6fe6:9090/graph?g0.expr=%28sum%28rate%28agent_http_requests_total%7Broute%3D%22%2Fchat%22%2Cstatus%3D~%225..%22%7D%5B5m%5D%29%29+%2F+sum%28rate%28agent_http_requests_total%7Broute%3D%22%2Fchat%22%7D%5B5m%5D%29%29%29+%3E+0.05+and+sum%28rate%28agent_http_requests_total%7Broute%3D%22%2Fchat%22%7D%5B5m%5D%29%29+%3E+0.01&g0.tab=1",
         "fingerprint": "afb599eddcbbc97f"
       }
     ],
@@ -39,7 +39,7 @@
       "summary": "More than 5 % of /chat requests are failing"
     },
     "routeLabels": {},
-    "externalURL": "http://3bb8d610ed10:9093",
+    "externalURL": "http://d575ab657321:9093",
     "version": "4",
     "groupKey": "{}:{alertname=\"HighErrorRate\", severity=\"critical\"}",
     "truncatedAlerts": 0

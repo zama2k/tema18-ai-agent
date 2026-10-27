@@ -12,11 +12,11 @@ Qué está comprobado y qué no, para no tener que adivinarlo:
 
 | Comprobado en local (hay evidencia en [`evidencias/local/`](evidencias/local/)) | Aún por comprobar |
 |---|---|
-| 251 tests unitarios, 98,9 % de cobertura (Python 3.11 y 3.12), `ruff`, `mypy` | Las ejecuciones de **GitHub Actions** y las insignias: se añadirán al publicar el repositorio |
+| 290 tests unitarios, 98,97 % de cobertura (Python 3.11 y 3.12), `ruff`, `mypy` | Las ejecuciones de **GitHub Actions** y las insignias: se añadirán al publicar el repositorio |
 | 25 tests de integración y la evaluación con juez **contra Azure OpenAI real** | El **CD en GitHub**: los workflows pasan `actionlint` y sus scripts se ejecutan en local, pero no se han lanzado en un runner |
 | Despliegue blue/green real por SSH contra un host simulado: cambio sin una sola petición fallida, rollback y versión rota rechazada | El despliegue contra un **EC2 real** (no hay cuenta de AWS) |
 | Alerta `HighErrorRate` disparada con errores reales y recibida en el receptor local; 17 tests de reglas con `promtool` | **Bedrock** real: el código existe y se prueba con `botocore.stub.Stubber`, no contra AWS. Haiku 3 de Anthropic está fuera de servicio en Bedrock desde el 10-sep-2026 |
-| `actionlint` y `shellcheck` sin avisos | **LangFuse** y **Sentry** reales: probados con mocks (no hay claves). **Discord** real: probado contra un receptor local |
+| `actionlint` 1.7.12 y `shellcheck` 0.9.0 y 0.11.0 sin avisos (con comando y versión en la evidencia) | **LangFuse** y **Sentry** reales: probados con mocks (no hay claves). **Discord** real: probado contra un receptor local |
 | | Las alarmas de **CloudWatch**: validadas como peticiones `PutMetricAlarm`, no aplicadas |
 | | Las URL públicas de staging y producción: se añadirán tras publicar |
 
@@ -108,7 +108,7 @@ Cada día (y a demanda) evalúa el modelo real con el juez y avisa por Discord s
 - **LLM-as-a-judge** (`evals/`): `gpt-5.6-sol` puntúa con esquema JSON estricto cuatro criterios (corrección, completitud, idioma, seguridad); el código pondera. *Quality gate*: media >= 0,75, mínimo por caso >= 0,5 y cero incumplimientos de las reglas deterministas del conjunto de datos (también en la evaluación nocturna).
 - **Meta-test del juez**: una respuesta deliberadamente errónea debe puntuar por debajo del umbral; si no, el juez no sirve y la evaluación falla.
 
-Medido en la última ejecución local ([informe](evidencias/local/07b-eval-report.md)): media **0,985**, mínimo **0,934**, p50 de latencia 0,8 s, p95 3,3 s, coste estimado **0,05 USD** por evaluación completa; el juez dio 1,00 a la respuesta correcta y 0,46 a la errónea.
+Medido en la última ejecución local ([informe](evidencias/local/07b-eval-report.md)): media **0,981**, mínimo **0,930**, p50 de latencia 0,7 s, p95 3,5 s, coste estimado **0,05 USD** por evaluación completa; el juez dio 1,00 a la respuesta correcta y 0,46 a la errónea.
 
 ## Monitorización
 
@@ -162,7 +162,7 @@ Protección de la rama `main`: exige el CI (`quality-gate`) y 1 aprobación. Al 
 
 ```
 src/            agente, proveedores, herramientas, API, observabilidad, configuración, precios
-tests/unit/     251 tests deterministas      tests/integration/  tests contra el modelo real
+tests/unit/     290 tests deterministas      tests/integration/  tests contra el modelo real
 evals/          conjunto de datos dorado, juez y runner del quality gate
 deploy/         scripts blue/green, host simulado (Dockerfile), unidades systemd, nginx
 monitoring/     Prometheus, Alertmanager, Grafana, CloudWatch, receptor de pruebas, compose

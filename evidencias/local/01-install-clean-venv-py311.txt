@@ -1,38 +1,16 @@
 
 [notice] A new release of pip is available: 24.0 -> 26.2.2
-[notice] To update, run: python -m pip install --upgrade pip
+[notice] To update, run: <venv> -m pip install --upgrade pip
 Using cached protobuf-7.36.2-cp310-abi3-win_amd64.whl (456 kB)
 Using cached six-1.17.0-py2.py3-none-any.whl (11 kB)
 Installing collected packages: wrapt, urllib3, typing-extensions, truststore, sniffio, six, ruff, regex, PyYAML, python-dotenv, pygments, protobuf, prometheus-client, pluggy, pathspec, packaging, mypy_extensions, librt, jmespath, jiter, iniconfig, idna, h11, coverage, colorama, click, charset_normalizer, certifi, backoff, ast-serialize, annotated-types, annotated-doc, uvicorn, typing-inspection, sentry-sdk, requests, python-dateutil, pytest, pydantic-core, opentelemetry-proto, opentelemetry-api, mypy, httpcore2, httpcore, googleapis-common-protos, anyio, tiktoken, starlette, pytest-timeout, pytest-socket, pytest-mock, pytest-cov, pytest-asyncio, pydantic, opentelemetry-semantic-conventions, opentelemetry-exporter-otlp-proto-common, opentelemetry-exporter-http-transport, httpx2, httpx, botocore, tavily-python, s3transfer, pydantic-settings, opentelemetry-sdk, openai, fastapi, opentelemetry-exporter-otlp-common, boto3, opentelemetry-exporter-otlp-proto-http, langfuse
 Successfully installed PyYAML-6.0.3 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.15.1 ast-serialize-0.13.1 backoff-2.2.1 boto3-1.43.119 botocore-1.43.119 certifi-2026.10.23 charset_normalizer-3.5.2 click-8.5.0 colorama-0.4.6 coverage-7.17.0 fastapi-0.162.0 googleapis-common-protos-1.76.0 h11-0.16.0 httpcore-1.0.9 httpcore2-2.16.0 httpx-0.28.1 httpx2-2.16.0 idna-3.20 iniconfig-2.3.1 jiter-0.18.0 jmespath-1.1.0 langfuse-5.0.4 librt-0.16.0 mypy-2.4.0 mypy_extensions-1.1.0 openai-3.39.0 opentelemetry-api-1.45.1 opentelemetry-exporter-http-transport-0.66b1 opentelemetry-exporter-otlp-common-0.66b1 opentelemetry-exporter-otlp-proto-common-1.45.1 opentelemetry-exporter-otlp-proto-http-1.45.1 opentelemetry-proto-1.45.1 opentelemetry-sdk-1.45.1 opentelemetry-semantic-conventions-0.66b1 packaging-26.3 pathspec-1.1.1 pluggy-1.7.0 prometheus-client-0.26.0 protobuf-7.36.2 pydantic-2.14.1 pydantic-core-2.50.1 pydantic-settings-2.16.1 pygments-2.21.0 pytest-9.1.1 pytest-asyncio-1.4.1 pytest-cov-7.1.0 pytest-mock-3.17.0 pytest-socket-0.8.1 pytest-timeout-2.4.0 python-dateutil-2.9.0.post0 python-dotenv-1.2.4 regex-2026.9.29 requests-2.34.2 ruff-0.17.3 s3transfer-0.19.3 sentry-sdk-2.73.0 six-1.17.0 sniffio-1.3.1 starlette-1.10.0 tavily-python-0.8.5 tiktoken-0.14.0 truststore-0.10.5 typing-extensions-4.16.0 typing-inspection-0.4.4 urllib3-2.8.0 uvicorn-0.54.0 wrapt-2.5.1
 --- pip check
 No broken requirements found.
---- direct dependencies (installed version == pinned version)
-boto3==1.43.119
-fastapi==0.162.0
-httpx==0.28.1
-httpx2==2.16.0
-langfuse==5.0.4
-mypy==2.4.0
-openai==3.39.0
-prometheus_client==0.26.0
-pydantic==2.14.1
-pydantic-settings==2.16.1
-pytest==9.1.1
-pytest-asyncio==1.4.1
-pytest-cov==7.1.0
-pytest-mock==3.17.0
-pytest-socket==0.8.1
-pytest-timeout==2.4.0
-python-dotenv==1.2.4
-PyYAML==6.0.3
-ruff==0.17.3
-sentry-sdk==2.73.0
-tavily-python==0.8.5
-uvicorn==0.54.0
+--- direct dependencies
 
 [notice] A new release of pip is available: 24.0 -> 26.2.2
-[notice] To update, run: python -m pip install --upgrade pip
+[notice] To update, run: <venv> -m pip install --upgrade pip
 boto3==1.43.119
 fastapi==0.162.0
 httpx==0.28.1

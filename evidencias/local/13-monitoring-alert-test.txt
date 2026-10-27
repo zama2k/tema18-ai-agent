@@ -26,19 +26,19 @@ Found:
 
 === 3) Start the stack (agent, Prometheus, Alertmanager, Grafana, webhook receiver)
  Container t18ej2-prometheus-1 Creating 
- Container t18ej2-webhook-receiver-1 Created 
  Container t18ej2-prometheus-1 Created 
  Container t18ej2-grafana-1 Creating 
+ Container t18ej2-webhook-receiver-1 Created 
  Container t18ej2-grafana-1 Created 
- Container t18ej2-alertmanager-1 Starting 
  Container t18ej2-agent-1 Starting 
- Container t18ej2-alertmanager-1 Started 
+ Container t18ej2-alertmanager-1 Starting 
  Container t18ej2-agent-1 Started 
- Container t18ej2-prometheus-1 Starting 
  Container t18ej2-webhook-receiver-1 Starting 
+ Container t18ej2-alertmanager-1 Started 
+ Container t18ej2-prometheus-1 Starting 
+ Container t18ej2-webhook-receiver-1 Started 
  Container t18ej2-prometheus-1 Started 
  Container t18ej2-grafana-1 Starting 
- Container t18ej2-webhook-receiver-1 Started 
  Container t18ej2-grafana-1 Started 
 ok: agent /health
 ok: Prometheus ready
@@ -49,10 +49,11 @@ ok: Prometheus scraping the agent
 === 4) Grafana: datasource and provisioned dashboard
 ok: Grafana health
 ok: dashboard 'AI Agent overview' provisioned
+ok: Grafana datasource reaches Prometheus
 datasource query via Grafana: success 2 series
 
 === 5) Generate errors against the API until HighErrorRate fires
-HighErrorRate is firing after 18 rounds
+HighErrorRate is firing after 15 rounds
 last status codes: healthy request=200, forced failure=502
 
 === 6) The notification must reach the webhook receiver
@@ -64,4 +65,3 @@ discord embed title: [FIRING] HighErrorRate (critical)
 5xx ratio: 0.67
 
 monitoring alert test PASSED
-exit code: 0

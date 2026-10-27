@@ -101,8 +101,13 @@ dash_found() {
 }
 wait_for "dashboard 'AI Agent overview' provisioned" dash_found
 # A query through Grafana's own proxy proves the provisioned datasource reaches Prometheus.
-curl -fsS -u "admin:${GRAFANA_ADMIN_PASSWORD}" "$GF/api/datasources/proxy/uid/prometheus/api/v1/query?query=up" |
-  json 'import json,sys; r=json.load(sys.stdin); print("datasource query via Grafana:", r["status"], len(r["data"]["result"]), "series"); sys.exit(0 if r["status"]=="success" and r["data"]["result"] else 1)'
+# Provisioning is asynchronous, so retry instead of racing it.
+datasource_query() {
+  curl -fsS -u "admin:${GRAFANA_ADMIN_PASSWORD}" "$GF/api/datasources/proxy/uid/prometheus/api/v1/query?query=up" |
+    json 'import json,sys; r=json.load(sys.stdin); print("datasource query via Grafana:", r["status"], len(r["data"]["result"]), "series"); sys.exit(0 if r["status"]=="success" and r["data"]["result"] else 1)'
+}
+wait_for "Grafana datasource reaches Prometheus" datasource_query
+datasource_query
 
 step "5) Generate errors against the API until HighErrorRate fires"
 chat() { curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST -H 'Content-Type: application/json' -d "$1" "http://127.0.0.1:${AGENT_PORT}/chat" || true; }

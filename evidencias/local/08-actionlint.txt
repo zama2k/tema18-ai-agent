@@ -1,1 +1,4 @@
+$ docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+1.7.12
+actionlint exit=0
 exit code: 0

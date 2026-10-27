@@ -1,0 +1,5 @@
+$ docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0 -x -P deploy deploy/blue_green_deploy.sh deploy/host/agentctl.sh deploy/host/entrypoint.sh deploy/lib.sh deploy/make_release.sh deploy/notify_discord.sh deploy/remote_deploy.sh deploy/rollback.sh deploy/run_deployment.sh deploy/sim_env.sh deploy/sim_host.sh deploy/smoke_test.sh deploy/test_blue_green_local.sh monitoring/test_alerts_local.sh 
+ShellCheck - shell script analysis tool
+version: 0.11.0
+shellcheck exit=0
+exit code: 0

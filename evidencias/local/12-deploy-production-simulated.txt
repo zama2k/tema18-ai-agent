@@ -1,33 +1,33 @@
 ::notice::EC2_HOST/EC2_SSH_KEY are not configured for 'production': deploying to the simulated host container instead.
-== Building release for 54fbcbfb6c11025a84b74971fdbc9deb774f0c66
-release written to /tmp/<tmp>/release.tar (378880 bytes)
+== Building release for 7332f6f278cb550283bb159cc95f6b7383a926a9
+release written to /tmp/<tmp>/release.tar (532480 bytes)
 simulated host ready: ssh deploy@127.0.0.1:2322, http://127.0.0.1:8380
-== Installing a base release so the swap to 54fbcbf is a real blue/green switch
-release written to /tmp/<tmp>/base.tar (378880 bytes)
-2026-10-27T07:56:23Z [deploy] no active slot yet: first deployment goes to blue
-2026-10-27T07:56:23Z [deploy] active=none target=blue:8000 release=base-54fbcbf
-2026-10-27T07:56:38Z [deploy] release prepared at /opt/agent/releases/base-54fbcbf
-2026-10-27T07:56:38Z [deploy] port 8000 not healthy yet (attempt 1/30)
-2026-10-27T07:56:40Z [deploy] port 8000 healthy with commit base-54fbcbf (attempt 2/30)
+== Installing a base release so the swap to 7332f6f is a real blue/green switch
+release written to /tmp/<tmp>/base.tar (532480 bytes)
+2026-10-27T08:25:38Z [deploy] no active slot yet: first deployment goes to blue
+2026-10-27T08:25:38Z [deploy] active=none target=blue:8000 release=base-7332f6f
+2026-10-27T08:25:53Z [deploy] release prepared at /opt/agent/releases/base-7332f6f
+2026-10-27T08:25:53Z [deploy] port 8000 not healthy yet (attempt 1/30)
+2026-10-27T08:25:55Z [deploy] port 8000 healthy with commit base-7332f6f (attempt 2/30)
 nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
 nginx: configuration file /etc/nginx/nginx.conf test is successful
-2026/10/27 07:56:40 [notice] 101#101: signal process started
-2026-10-27T07:56:40Z [deploy] nginx now proxies to 8000
-2026-10-27T07:56:40Z [deploy] deployment finished: blue:8000 serves base-54fbcbf
-== Deploying 54fbcbfb6c11025a84b74971fdbc9deb774f0c66 to production (simulated)
-2026-10-27T07:56:41Z [deploy] active=8000 target=green:8001 release=54fbcbfb6c11025a84b74971fdbc9deb774f0c66
-2026-10-27T07:56:52Z [deploy] release prepared at /opt/agent/releases/54fbcbfb6c11025a84b74971fdbc9deb774f0c66
-2026-10-27T07:56:52Z [deploy] port 8001 not healthy yet (attempt 1/30)
-2026-10-27T07:56:54Z [deploy] port 8001 healthy with commit 54fbcbfb6c11025a84b74971fdbc9deb774f0c66 (attempt 2/30)
+2026/10/27 08:25:55 [notice] 102#102: signal process started
+2026-10-27T08:25:55Z [deploy] nginx now proxies to 8000
+2026-10-27T08:25:55Z [deploy] deployment finished: blue:8000 serves base-7332f6f
+== Deploying 7332f6f278cb550283bb159cc95f6b7383a926a9 to production (simulated)
+2026-10-27T08:25:56Z [deploy] active=8000 target=green:8001 release=7332f6f278cb550283bb159cc95f6b7383a926a9
+2026-10-27T08:26:06Z [deploy] release prepared at /opt/agent/releases/7332f6f278cb550283bb159cc95f6b7383a926a9
+2026-10-27T08:26:06Z [deploy] port 8001 not healthy yet (attempt 1/30)
+2026-10-27T08:26:08Z [deploy] port 8001 healthy with commit 7332f6f278cb550283bb159cc95f6b7383a926a9 (attempt 2/30)
 nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
 nginx: configuration file /etc/nginx/nginx.conf test is successful
-2026/10/27 07:56:54 [notice] 202#202: signal process started
-2026-10-27T07:56:54Z [deploy] nginx now proxies to 8001
-2026-10-27T07:56:54Z [deploy] deployment finished: green:8001 serves 54fbcbfb6c11025a84b74971fdbc9deb774f0c66
+2026/10/27 08:26:08 [notice] 203#203: signal process started
+2026-10-27T08:26:08Z [deploy] nginx now proxies to 8001
+2026-10-27T08:26:09Z [deploy] deployment finished: green:8001 serves 7332f6f278cb550283bb159cc95f6b7383a926a9
 == Verifying http://127.0.0.1:8380
-ok: GET /health -> 200 (commit 54fbcbfb6c11025a84b74971fdbc9deb774f0c66)
+ok: GET /health -> 200 (commit 7332f6f278cb550283bb159cc95f6b7383a926a9)
 ok: POST /chat -> 200 with a 'response' field
 ok: GET /metrics -> 200
 smoke test passed for http://127.0.0.1:8380
-== production deployment of 54fbcbf verified
+== production deployment of 7332f6f verified
 exit code: 0
