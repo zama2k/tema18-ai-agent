@@ -10,7 +10,10 @@ set -euo pipefail
 
 REF="${1:-}"
 OUT="${2:-}"
-[ -n "$REF" ] && [ -n "$OUT" ] || { echo "usage: $0 <git-ref|WORKTREE> <out.tar> [--version X] [--broken]" >&2; exit 2; }
+if ! { [ -n "$REF" ] && [ -n "$OUT" ]; }; then
+  echo "usage: $0 <git-ref|WORKTREE> <out.tar> [--version X] [--broken]" >&2
+  exit 2
+fi
 shift 2
 
 VERSION_OVERRIDE=""

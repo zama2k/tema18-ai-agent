@@ -30,10 +30,17 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-[ -n "$HOST" ] && [ -f "$KEY" ] && [ -f "$KNOWN_HOSTS" ] ||
-  { echo "--host, --key and --known-hosts (existing files) are required" >&2; exit 2; }
+if ! { [ -n "$HOST" ] && [ -f "$KEY" ] && [ -f "$KNOWN_HOSTS" ]; }; then
+  echo "--host, --key and --known-hosts (existing files) are required" >&2
+  exit 2
+fi
 case "$ACTION" in
-  deploy) [ -f "$RELEASE" ] && [ -n "$SHA" ] || { echo "deploy needs --release and --sha" >&2; exit 2; } ;;
+  deploy)
+    if ! { [ -f "$RELEASE" ] && [ -n "$SHA" ]; }; then
+      echo "deploy needs --release and --sha" >&2
+      exit 2
+    fi
+    ;;
   rollback) ;;
   *) echo "--action must be deploy or rollback" >&2; exit 2 ;;
 esac

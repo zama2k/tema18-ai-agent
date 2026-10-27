@@ -43,6 +43,12 @@ class TestCi:
         pytest_step = next(s for s in job if "test_llm_quality.py" in s.get("run", ""))
         assert "--timeout=60" in pytest_step["run"] and "-x" in pytest_step["run"]
 
+    def test_lint_job_runs_pinned_shellcheck_and_actionlint(self) -> None:
+        commands = " ".join(s.get("run", "") for s in steps(load("ci.yml"), "lint"))
+        assert "koalaman/shellcheck:v0.11.0" in commands
+        assert "rhysd/actionlint:1.7.12" in commands
+        assert ":latest" not in commands
+
     def test_nightly_still_runs_the_self_test(self) -> None:
         job = steps(load("llm-eval-nightly.yml"), "evaluate")
         eval_step = next(s for s in job if "evals.run_eval" in s.get("run", ""))

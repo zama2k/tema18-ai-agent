@@ -96,13 +96,15 @@ if ! "$ROOT/deploy/smoke_test.sh" "${smoke_args[@]}"; then
   exit 1
 fi
 
+checks='POST /chat'
+if [ "$ENVIRONMENT" = production ]; then checks='/health, /chat, /metrics'; fi
 {
   echo "### ${ENVIRONMENT}: deployed \`${SHORT}\`"
   echo "| | |"
   echo "|---|---|"
   echo "| Commit | \`${SHA}\` |"
   echo "| Mode | ${mode} |"
-  echo "| Checks | $([ "$ENVIRONMENT" = production ] && echo '/health, /chat, /metrics' || echo 'POST /chat') |"
+  echo "| Checks | ${checks} |"
   echo "| Finished (UTC) | $(date -u +%Y-%m-%dT%H:%M:%SZ) |"
 } >>"$SUMMARY"
 echo "mode=${mode}" >>"$OUTPUT"

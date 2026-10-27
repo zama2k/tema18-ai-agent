@@ -27,8 +27,9 @@ else
 fi
 
 standby_release="$(readlink -f "$AGENT_ROOT/slots/$standby_color" || true)"
-[ -n "$standby_release" ] && [ -d "$standby_release" ] ||
+if ! { [ -n "$standby_release" ] && [ -d "$standby_release" ]; }; then
   die "the standby slot (${standby_color}) has no release to roll back to"
+fi
 standby_id="$(basename "$standby_release")"
 
 if ! health_ok "http://127.0.0.1:${standby_port}/health" "$standby_id"; then

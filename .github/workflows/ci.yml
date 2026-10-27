@@ -42,6 +42,13 @@ jobs:
         run: ruff check .
       - name: Ruff format check
         run: ruff format --check .
+      # Pinned image tags: the same shellcheck/actionlint versions every run (0.9.0 and 0.11.0 differ).
+      - name: Shellcheck (deploy and monitoring scripts)
+        run: >-
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.11.0 -x -P deploy
+          deploy/*.sh deploy/host/*.sh monitoring/*.sh
+      - name: Actionlint (workflows)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
   type-check:
     name: type-check
