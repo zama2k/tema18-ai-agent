@@ -1,0 +1,13 @@
+# Production dependencies (pinned to the versions exercised by CI and the local evidence).
+# LangChain is intentionally not used: see docs/decisiones.md (tool-calling loop on the OpenAI SDK).
+openai==3.39.0
+pydantic==2.14.1
+pydantic-settings==2.16.1
+python-dotenv==1.2.4
+tavily-python==0.8.5
+boto3==1.43.119
+fastapi==0.162.0
+uvicorn==0.54.0
+prometheus-client==0.26.0
+langfuse==5.0.4
+sentry-sdk==2.73.0
