@@ -141,6 +141,18 @@ else
   pass "the broken slot was stopped (port 8000 refuses connections)"
 fi
 
+log "6) Smoke test: passes for the served commit, fails for any other one"
+if "$ROOT/deploy/smoke_test.sh" "http://127.0.0.1:${NGINX_PORT}" --expect-sha v2-new --full; then
+  pass "smoke_test --full accepts the commit that is actually served"
+else
+  fail "smoke_test --full rejected a healthy deployment"
+fi
+if SMOKE_RETRIES=0 "$ROOT/deploy/smoke_test.sh" "http://127.0.0.1:${NGINX_PORT}" --expect-sha v3-broken --full 2>/dev/null; then
+  fail "smoke_test --full accepted the wrong commit"
+else
+  pass "smoke_test --full fails when the served commit is not the expected one"
+fi
+
 log "Result"
 if [ "$failures" -ne 0 ]; then
   echo "blue/green local test FAILED with $failures failed assertion(s)"

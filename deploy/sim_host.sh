@@ -24,7 +24,8 @@ IMAGE="${T18_IMAGE:-t18ej2-host:local}"
 start() {
   local workdir="$1"
   mkdir -p "$workdir"
-  docker build -q -f "$ROOT/deploy/host/Dockerfile" -t "$IMAGE" "$ROOT" >/dev/null
+  # Relative paths on purpose: Docker for Windows cannot read MSYS-style /c/... paths.
+  (cd "$ROOT" && docker build -q -f deploy/host/Dockerfile -t "$IMAGE" .) >/dev/null
 
   rm -f "$workdir/id_ed25519" "$workdir/id_ed25519.pub"
   ssh-keygen -q -t ed25519 -N "" -C "t18ej2-ephemeral" -f "$workdir/id_ed25519"
