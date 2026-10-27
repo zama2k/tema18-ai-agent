@@ -1,0 +1,227 @@
+# Unit tests for alert_rules.yml. Run: promtool test rules monitoring/prometheus/tests/alert_rules_test.yml
+rule_files:
+  - ../alert_rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # ---------------------------------------------------------------- HighErrorRate
+  - name: error rate above 5 percent fires
+    interval: 1m
+    input_series:
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="200"}'
+        values: "0+10x30"
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="502"}'
+        values: "0+2x30"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: HighErrorRate
+        exp_alerts: [] # pending: the 2 minute "for" has not elapsed
+      - eval_time: 10m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: ai-agent
+            exp_annotations:
+              summary: "More than 5 % of /chat requests are failing"
+              description: "5xx ratio over the last 5 minutes: 16.67%."
+              runbook: "docs/runbook.md#high-error-rate"
+
+  - name: error rate below 5 percent stays quiet
+    interval: 1m
+    input_series:
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="200"}'
+        values: "0+98x30"
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="502"}'
+        values: "0+2x30"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HighErrorRate
+        exp_alerts: []
+
+  - name: 4xx responses are not counted as errors
+    interval: 1m
+    input_series:
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="200"}'
+        values: "0+10x30"
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="422"}'
+        values: "0+10x30"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HighErrorRate
+        exp_alerts: []
+
+  - name: a failing trickle of traffic is ignored
+    interval: 1m
+    input_series:
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="502"}'
+        values: "0+0.1x30"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: HighErrorRate
+        exp_alerts: []
+
+  # ---------------------------------------------------------------- AgentDown
+  - name: scrape target down fires after one minute
+    interval: 1m
+    input_series:
+      - series: 'up{job="ai-agent",instance="agent:8000"}'
+        values: "1 1 0 0 0 0 0"
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: AgentDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: ai-agent
+              job: ai-agent
+              instance: "agent:8000"
+            exp_annotations:
+              summary: "The AI agent is not answering scrapes"
+              description: "Prometheus cannot scrape agent:8000 for more than 1 minute."
+              runbook: "docs/runbook.md#agent-down"
+
+  # ---------------------------------------------------------------- HighLatencyP95
+  - name: slow responses fire the P95 alert
+    interval: 1m
+    input_series:
+      - series: 'agent_http_request_duration_seconds_bucket{route="/chat",le="1"}'
+        values: "0+0x30"
+      - series: 'agent_http_request_duration_seconds_bucket{route="/chat",le="15"}'
+        values: "0+0x30"
+      - series: 'agent_http_request_duration_seconds_bucket{route="/chat",le="30"}'
+        values: "0+10x30"
+      - series: 'agent_http_request_duration_seconds_bucket{route="/chat",le="+Inf"}'
+        values: "0+10x30"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HighLatencyP95
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: ai-agent
+            exp_annotations:
+              summary: "P95 latency of /chat is above 15 s"
+              description: "P95 over the last 5 minutes: 29.25s."
+              runbook: "docs/runbook.md#high-latency"
+
+  - name: fast responses do not fire the P95 alert
+    interval: 1m
+    input_series:
+      - series: 'agent_http_request_duration_seconds_bucket{route="/chat",le="1"}'
+        values: "0+10x30"
+      - series: 'agent_http_request_duration_seconds_bucket{route="/chat",le="+Inf"}'
+        values: "0+10x30"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: HighLatencyP95
+        exp_alerts: []
+
+  # ---------------------------------------------------------------- DailyCostHigh
+  - name: cost above 50 dollars a day fires
+    interval: 10m
+    input_series:
+      - series: "agent_cost_usd_total"
+        values: "0+4x200" # $4 every 10 minutes = $576 a day
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: DailyCostHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: ai-agent
+            exp_annotations:
+              summary: "LLM spend in the last 24 h exceeds $50"
+              description: "Estimated cost in 24 h: $576.00."
+              runbook: "docs/runbook.md#daily-cost"
+
+  - name: modest cost stays quiet
+    interval: 10m
+    input_series:
+      - series: "agent_cost_usd_total"
+        values: "0+0.01x200"
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: DailyCostHigh
+        exp_alerts: []
+
+  # ---------------------------------------------------------------- QualityDegraded
+  - name: low judge score fires
+    interval: 1m
+    input_series:
+      - series: "agent_quality_score"
+        values: "0.5x70"
+    alert_rule_test:
+      - eval_time: 65m
+        alertname: QualityDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: ai-agent
+            exp_annotations:
+              summary: "Answer quality (LLM-as-a-judge) is below 0.7"
+              description: "Mean quality score over 1 h: 0.50."
+              runbook: "docs/runbook.md#quality-degraded"
+
+  - name: good judge score and missing report stay quiet
+    interval: 1m
+    input_series:
+      - series: "agent_quality_score"
+        values: "0.9x70"
+      - series: 'agent_quality_score{instance="other"}'
+        values: "stale"
+    alert_rule_test:
+      - eval_time: 65m
+        alertname: QualityDegraded
+        exp_alerts: []
+
+  # ---------------------------------------------------------------- TokenUsageSpike
+  - name: token usage doubling fires
+    interval: 10m
+    input_series:
+      # ~1000 tokens/hour for 23 hours, then 6000 tokens/hour
+      - series: 'agent_tokens_total{direction="input"}'
+        values: "0+167x138 23046+1000x20"
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: TokenUsageSpike
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: ai-agent
+            exp_annotations:
+              summary: "Token usage is more than twice the daily hourly average"
+              description: "Possible prompt injection or runaway tool loop; tokens in the last hour: 6000."
+              runbook: "docs/runbook.md#token-spike"
+
+  - name: steady token usage stays quiet
+    interval: 10m
+    input_series:
+      - series: 'agent_tokens_total{direction="input"}'
+        values: "0+167x200"
+    alert_rule_test:
+      - eval_time: 26h
+        alertname: TokenUsageSpike
+        exp_alerts: []
+
+  # ---------------------------------------------------------------- NewErrorTypeSeen
+  - name: a brand new error type is reported, a known one is not
+    interval: 5m
+    input_series:
+      - series: 'agent_errors_total{error_type="ProviderError"}'
+        values: "0+1x2200"
+      - series: 'agent_errors_total{error_type="content_filtered"}'
+        values: "_x2100 0+3x20"
+    alert_rule_test:
+      - eval_time: 10510m # two samples after the new type first appears
+        alertname: NewErrorTypeSeen
+        exp_alerts:
+          - exp_labels:
+              severity: info
+              service: ai-agent
+              error_type: content_filtered
+            exp_annotations:
+              summary: "New error type: content_filtered"
+              description: "This error type was not seen in the previous 7 days; check Sentry for the stack trace."
+              runbook: "docs/runbook.md#new-error-type"

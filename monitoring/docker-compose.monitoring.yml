@@ -1,0 +1,87 @@
+# Monitoring stack: agent + Prometheus + Alertmanager + Grafana (+ a local webhook sink for tests).
+#
+#   GRAFANA_ADMIN_PASSWORD=change-me docker compose -f monitoring/docker-compose.monitoring.yml up -d --build
+#
+# Host ports are variables so several stacks can coexist (defaults are the usual ones):
+#   AGENT_PORT=8000 PROMETHEUS_PORT=9090 ALERTMANAGER_PORT=9093 GRAFANA_PORT=3000 WEBHOOK_PORT=9099
+name: ${COMPOSE_PROJECT_NAME:-t18ej2}
+
+services:
+  agent:
+    build:
+      context: ..
+      args:
+        GIT_SHA: ${GIT_SHA:-local}
+    image: ${AGENT_IMAGE:-t18ej2-agent:local}
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      APP_ENV: monitoring-stack
+      QUALITY_REPORT_FILE: /quality/latest.json
+    volumes:
+      # The nightly/CI evaluation writes latest.json here; the agent exposes it as a gauge.
+      - ${QUALITY_DIR:-../evals/reports}:/quality:ro
+    ports:
+      - "${AGENT_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ${PROMETHEUS_DIR:-./prometheus}:/etc/prometheus:ro
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      - agent
+      - alertmanager
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ${ALERTMANAGER_CONFIG:-./alertmanager/alertmanager.yml}:/etc/alertmanager/alertmanager.yml:ro
+      # Secret file with the Discord webhook URL (git-ignored: monitoring/secrets/).
+      - ${DISCORD_WEBHOOK_FILE:-./secrets/discord_webhook_url}:/etc/alertmanager/secrets/discord_webhook_url:ro
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.2.4
+    environment:
+      # No default password on purpose: the stack refuses to start without one.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Local test sink for Alertmanager notifications. Enabled with: --profile local
+  webhook-receiver:
+    profiles: [local]
+    image: ${AGENT_IMAGE:-t18ej2-agent:local}
+    entrypoint: ["python", "/app/webhook_receiver.py"]
+    environment:
+      RECEIVER_DATA: /data/received.jsonl
+    volumes:
+      - ./webhook_receiver.py:/app/webhook_receiver.py:ro
+      - receiver-data:/data
+    user: root
+    ports:
+      - "${WEBHOOK_PORT:-9099}:9099"
+    depends_on:
+      - agent
+
+volumes:
+  receiver-data:

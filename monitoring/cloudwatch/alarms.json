@@ -1,0 +1,150 @@
+{
+  "_comment": "Input for `aws cloudwatch put-metric-alarm --cli-input-json` (one object of Alarms per call). Replace ${ALERT_TOPIC_ARN} with an SNS topic ARN and FunctionName with your Lambda.",
+  "Alarms": [
+    {
+      "AlarmName": "ai-agent-lambda-invocations-high",
+      "AlarmDescription": "Unusual traffic: more than 10,000 invocations in one hour.",
+      "Namespace": "AWS/Lambda",
+      "MetricName": "Invocations",
+      "Dimensions": [
+        {
+          "Name": "FunctionName",
+          "Value": "ai-agent"
+        }
+      ],
+      "Statistic": "Sum",
+      "Period": 3600,
+      "EvaluationPeriods": 1,
+      "DatapointsToAlarm": 1,
+      "Threshold": 10000.0,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "AlarmActions": [
+        "${ALERT_TOPIC_ARN}"
+      ]
+    },
+    {
+      "AlarmName": "ai-agent-lambda-error-rate-high",
+      "AlarmDescription": "More than 5% of invocations failed over 5 minutes.",
+      "Metrics": [
+        {
+          "Id": "error_rate",
+          "Expression": "100 * errors / MAX([errors, invocations])",
+          "Label": "Error rate (%)",
+          "ReturnData": true
+        },
+        {
+          "Id": "errors",
+          "ReturnData": false,
+          "MetricStat": {
+            "Metric": {
+              "Namespace": "AWS/Lambda",
+              "MetricName": "Errors",
+              "Dimensions": [
+                {
+                  "Name": "FunctionName",
+                  "Value": "ai-agent"
+                }
+              ]
+            },
+            "Period": 300,
+            "Stat": "Sum"
+          }
+        },
+        {
+          "Id": "invocations",
+          "ReturnData": false,
+          "MetricStat": {
+            "Metric": {
+              "Namespace": "AWS/Lambda",
+              "MetricName": "Invocations",
+              "Dimensions": [
+                {
+                  "Name": "FunctionName",
+                  "Value": "ai-agent"
+                }
+              ]
+            },
+            "Period": 300,
+            "Stat": "Sum"
+          }
+        }
+      ],
+      "EvaluationPeriods": 1,
+      "DatapointsToAlarm": 1,
+      "Threshold": 5.0,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "AlarmActions": [
+        "${ALERT_TOPIC_ARN}"
+      ]
+    },
+    {
+      "AlarmName": "ai-agent-lambda-duration-p95-high",
+      "AlarmDescription": "p95 duration above 10 seconds for 10 minutes.",
+      "Namespace": "AWS/Lambda",
+      "MetricName": "Duration",
+      "Dimensions": [
+        {
+          "Name": "FunctionName",
+          "Value": "ai-agent"
+        }
+      ],
+      "ExtendedStatistic": "p95",
+      "Period": 300,
+      "EvaluationPeriods": 2,
+      "DatapointsToAlarm": 2,
+      "Threshold": 10000.0,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "Unit": "Milliseconds",
+      "AlarmActions": [
+        "${ALERT_TOPIC_ARN}"
+      ]
+    },
+    {
+      "AlarmName": "ai-agent-lambda-throttles",
+      "AlarmDescription": "Any throttled invocation: raise concurrency or use provisioned concurrency.",
+      "Namespace": "AWS/Lambda",
+      "MetricName": "Throttles",
+      "Dimensions": [
+        {
+          "Name": "FunctionName",
+          "Value": "ai-agent"
+        }
+      ],
+      "Statistic": "Sum",
+      "Period": 60,
+      "EvaluationPeriods": 1,
+      "DatapointsToAlarm": 1,
+      "Threshold": 0.0,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "AlarmActions": [
+        "${ALERT_TOPIC_ARN}"
+      ]
+    },
+    {
+      "AlarmName": "ai-agent-lambda-concurrent-executions-high",
+      "AlarmDescription": "More than 800 concurrent executions: close to the account limit.",
+      "Namespace": "AWS/Lambda",
+      "MetricName": "ConcurrentExecutions",
+      "Dimensions": [
+        {
+          "Name": "FunctionName",
+          "Value": "ai-agent"
+        }
+      ],
+      "Statistic": "Maximum",
+      "Period": 60,
+      "EvaluationPeriods": 1,
+      "DatapointsToAlarm": 1,
+      "Threshold": 800.0,
+      "ComparisonOperator": "GreaterThanThreshold",
+      "TreatMissingData": "notBreaching",
+      "AlarmActions": [
+        "${ALERT_TOPIC_ARN}"
+      ]
+    }
+  ]
+}

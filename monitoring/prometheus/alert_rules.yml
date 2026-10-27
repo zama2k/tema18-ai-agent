@@ -1,0 +1,114 @@
+# Alert matrix for the AI agent (layer 1: service health, plus the LLM-specific signals that the
+# course assigns to LangFuse/Sentry, expressed here as Prometheus metrics).
+#
+# | Alert                | Condition                                   | Course tool        |
+# |----------------------|---------------------------------------------|--------------------|
+# | HighErrorRate        | >5 % of /chat requests fail with 5xx, 5 min | CloudWatch+Sentry  |
+# | HighLatencyP95       | P95 of /chat > 15 s for 10 min              | CloudWatch         |
+# | DailyCostHigh        | > $50 of LLM cost in 24 h                   | LangFuse + billing |
+# | QualityDegraded      | mean judge score < 0.7 over 1 h             | LangFuse scores    |
+# | TokenUsageSpike      | tokens in 1 h > 2x the daily hourly average | LangFuse           |
+# | NewErrorTypeSeen     | an error type never seen in the last 7 days | Sentry             |
+# | AgentDown            | the scrape target is down for 1 min         | CloudWatch         |
+#
+# Thresholds are starting points: tune them with two weeks of real baseline data.
+groups:
+  - name: ai-agent-availability
+    rules:
+      - alert: AgentDown
+        expr: up{job="ai-agent"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-agent
+        annotations:
+          summary: "The AI agent is not answering scrapes"
+          description: "Prometheus cannot scrape {{ $labels.instance }} for more than 1 minute."
+          runbook: "docs/runbook.md#agent-down"
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(agent_http_requests_total{route="/chat",status=~"5.."}[5m]))
+            /
+            sum(rate(agent_http_requests_total{route="/chat"}[5m]))
+          ) > 0.05
+          and
+          sum(rate(agent_http_requests_total{route="/chat"}[5m])) > 0.01
+        for: 2m
+        labels:
+          severity: critical
+          service: ai-agent
+        annotations:
+          summary: "More than 5 % of /chat requests are failing"
+          description: "5xx ratio over the last 5 minutes: {{ $value | humanizePercentage }}."
+          runbook: "docs/runbook.md#high-error-rate"
+
+  - name: ai-agent-performance
+    rules:
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(agent_http_request_duration_seconds_bucket{route="/chat"}[5m]))
+          ) > 15
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-agent
+        annotations:
+          summary: "P95 latency of /chat is above 15 s"
+          description: "P95 over the last 5 minutes: {{ $value | humanizeDuration }}."
+          runbook: "docs/runbook.md#high-latency"
+
+  - name: ai-agent-llm
+    rules:
+      - alert: DailyCostHigh
+        expr: sum(increase(agent_cost_usd_total[24h])) > 50
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-agent
+        annotations:
+          summary: "LLM spend in the last 24 h exceeds $50"
+          description: "Estimated cost in 24 h: ${{ $value | printf \"%.2f\" }}."
+          runbook: "docs/runbook.md#daily-cost"
+
+      - alert: QualityDegraded
+        expr: avg_over_time(agent_quality_score[1h]) < 0.7
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-agent
+        annotations:
+          summary: "Answer quality (LLM-as-a-judge) is below 0.7"
+          description: "Mean quality score over 1 h: {{ $value | printf \"%.2f\" }}."
+          runbook: "docs/runbook.md#quality-degraded"
+
+      - alert: TokenUsageSpike
+        expr: |
+          sum(increase(agent_tokens_total[1h]))
+            > 2 * (sum(increase(agent_tokens_total[1d])) / 24)
+          and
+          sum(increase(agent_tokens_total[1h])) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: ai-agent
+        annotations:
+          summary: "Token usage is more than twice the daily hourly average"
+          description: "Possible prompt injection or runaway tool loop; tokens in the last hour: {{ $value | printf \"%.0f\" }}."
+          runbook: "docs/runbook.md#token-spike"
+
+      - alert: NewErrorTypeSeen
+        expr: |
+          (sum by (error_type) (increase(agent_errors_total[15m])) > 0)
+          unless
+          (sum by (error_type) (increase(agent_errors_total[7d] offset 15m)) > 0)
+        labels:
+          severity: info
+          service: ai-agent
+        annotations:
+          summary: "New error type: {{ $labels.error_type }}"
+          description: "This error type was not seen in the previous 7 days; check Sentry for the stack trace."
+          runbook: "docs/runbook.md#new-error-type"

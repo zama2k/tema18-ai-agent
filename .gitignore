@@ -17,6 +17,7 @@ htmlcov/
 *.pem
 *.key
 monitoring/secrets/
+monitoring/.tmp/
 deploy/.tmp/
 evals/reports/
 
