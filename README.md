@@ -20,7 +20,7 @@ Qué está comprobado y qué no, para no tener que adivinarlo:
 | | Las alarmas de **CloudWatch**: validadas como peticiones `PutMetricAlarm`, no aplicadas |
 | | Las URL públicas de staging y producción: se añadirán tras publicar |
 
-El `.env.example` no está en la raíz porque el entorno de trabajo bloquea la creación de ficheros `.env*`: su contenido completo está en [docs/configuracion.md](docs/configuracion.md) para copiarlo tal cual.
+La plantilla de variables está en [docs/configuracion.md](docs/configuracion.md); el fichero `.env.example` se añadirá antes de publicar.
 
 ## Qué hace
 

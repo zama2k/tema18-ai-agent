@@ -35,7 +35,7 @@ Una línea `CLAVE=` vacía se trata como no definida. Las claves son `SecretStr`
 
 ## Plantilla `.env.example`
 
-> El fichero `.env.example` de la raíz no se ha podido crear en la sesión de trabajo (el entorno bloquea la escritura de ficheros `.env*`). Copia este bloque a `.env.example` (versionado, sin valores reales) o a `.env` (ignorado) y rellénalo.
+> El fichero `.env.example` se añadirá a la raíz antes de publicar el repositorio. Mientras tanto, copia este bloque a `.env` (ignorado por git) y rellénalo; en `.env.example` irá la misma plantilla, sin valores reales.
 
 ```dotenv
 # --- LLM provider: azure (default) | bedrock | mock ---
