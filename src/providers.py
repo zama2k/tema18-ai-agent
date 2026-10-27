@@ -128,6 +128,17 @@ class AzureOpenAIProvider(LLMProvider):
         if not completion.choices:
             raise ProviderError("Azure OpenAI returned no choices")
         choice = completion.choices[0]
+        if choice.finish_reason == "content_filter":
+            # The platform filter cut or withheld the completion: same outcome as a blocked prompt.
+            raise ContentFilteredError("completion blocked by the content filter")
+        if choice.finish_reason == "length":
+            logger.warning(
+                "completion truncated by the token limit",
+                extra={
+                    "model": deployment,
+                    "max_completion_tokens": kwargs["max_completion_tokens"],
+                },
+            )
         message = choice.message
         calls = [_parse_openai_tool_call(c) for c in (message.tool_calls or [])]
         usage = completion.usage
@@ -207,6 +218,8 @@ class BedrockProvider(LLMProvider):
         except (ValueError, KeyError) as exc:
             raise ProviderError(f"Bedrock returned an unusable response: {exc}") from exc
         parsed.model = model_id
+        if parsed.truncated:
+            logger.warning("completion truncated by the token limit", extra={"model": model_id})
         return parsed
 
     def _invoke(self, model_id: str, body: dict[str, Any]) -> dict[str, Any]:

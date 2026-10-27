@@ -160,6 +160,7 @@ class AIAgent:
         cost = 0.0
         tools_used: list[str] = []
         failures = 0
+        truncated = False
 
         with self._tracer.trace("process_query", input=text, metadata={"route": route}) as trace:
             answer: str | None = None
@@ -168,6 +169,7 @@ class AIAgent:
                 iterations = step
                 response, call_cost = await self._call_llm(messages, schemas)
                 usage, cost = usage + response.usage, cost + call_cost
+                truncated = truncated or response.truncated
                 if not response.tool_calls:
                     answer = response.text
                     break
@@ -188,6 +190,7 @@ class AIAgent:
                 )
                 response, call_cost = await self._call_llm(messages, None)
                 usage, cost = usage + response.usage, cost + call_cost
+                truncated = truncated or response.truncated
                 answer = response.text if not response.tool_calls else ""
                 iterations += 1
 
@@ -208,6 +211,7 @@ class AIAgent:
             iterations=iterations,
             tools_used=tools_used,
             tool_failures=failures,
+            truncated=truncated,
             latency_seconds=time.perf_counter() - started,
         )
 

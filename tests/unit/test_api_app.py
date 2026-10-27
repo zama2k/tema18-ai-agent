@@ -72,7 +72,8 @@ class TestChat:
         response = client.post("/chat", json={"message": "¿Cuál es la capital de Francia?"})
         assert response.status_code == 200
         body = response.json()
-        assert set(body) == {"response", "route", "usage", "cost_usd", "model"}
+        assert set(body) == {"response", "route", "usage", "cost_usd", "model", "truncated"}
+        assert body["truncated"] is False
         assert "París" in body["response"]
         assert body["route"] == "chat_with_tools"
         assert body["usage"]["total_tokens"] == (

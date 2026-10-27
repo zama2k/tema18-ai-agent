@@ -47,6 +47,11 @@ class LLMResponse:
     model: str = ""
     finish_reason: str | None = None
 
+    @property
+    def truncated(self) -> bool:
+        """True when the model stopped because it hit the output token limit."""
+        return self.finish_reason in {"length", "max_tokens"}
+
 
 @dataclass
 class AgentResult:
@@ -60,4 +65,5 @@ class AgentResult:
     iterations: int
     tools_used: list[str] = field(default_factory=list)
     tool_failures: int = 0
+    truncated: bool = False
     latency_seconds: float = 0.0

@@ -175,6 +175,28 @@ class TestAzureProvider:
         with pytest.raises(ProviderError, match="reach"):
             await fake.provider().complete([{"role": "user", "content": "hi"}])
 
+    async def test_finish_reason_content_filter_is_a_filtered_error(self) -> None:
+        body = completion_json()
+        body["choices"][0]["finish_reason"] = "content_filter"
+        fake = FakeAzure(httpx2.Response(200, json=body))
+        with pytest.raises(ContentFilteredError, match="completion"):
+            await fake.provider().complete([{"role": "user", "content": "hi"}])
+
+    async def test_finish_reason_length_warns_and_marks_truncation(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        body = completion_json("cortado a mit")
+        body["choices"][0]["finish_reason"] = "length"
+        fake = FakeAzure(httpx2.Response(200, json=body))
+        with caplog.at_level("WARNING", logger="src.providers"):
+            result = await fake.provider().complete([{"role": "user", "content": "hi"}])
+        assert result.truncated and result.text == "cortado a mit"
+        assert any("truncated" in r.getMessage() for r in caplog.records)
+
+    async def test_normal_completion_is_not_truncated(self) -> None:
+        result = await ok().provider().complete([{"role": "user", "content": "hi"}])
+        assert not result.truncated
+
     async def test_no_choices_is_an_error(self) -> None:
         body = completion_json()
         body["choices"] = []
@@ -241,6 +263,14 @@ class TestBedrockProvider:
         assert result.usage.total == 13
         assert result.model == "anthropic.claude-3-haiku-20240307-v1:0"
         assert result.finish_reason == "end_turn"
+
+    async def test_max_tokens_stop_reason_warns(self, caplog: pytest.LogCaptureFixture) -> None:
+        payload = {**self.OK, "stop_reason": "max_tokens"}
+        provider, _ = stubbed_bedrock(payload)
+        with caplog.at_level("WARNING", logger="src.providers"):
+            result = await provider.complete([{"role": "user", "content": "hola"}])
+        assert result.truncated
+        assert any("truncated" in r.getMessage() for r in caplog.records)
 
     @pytest.mark.parametrize(
         ("code", "exc"),

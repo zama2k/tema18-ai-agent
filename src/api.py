@@ -71,6 +71,7 @@ class ChatResponse(BaseModel):
     usage: UsageOut
     cost_usd: float
     model: str
+    truncated: bool = False
 
 
 def _error(status: int, error_type: str, message: str) -> JSONResponse:
@@ -211,6 +212,7 @@ def create_app(
             ),
             cost_usd=round(result.cost_usd, 8),
             model=result.model,
+            truncated=result.truncated,
         )
 
     @app.get("/metrics")

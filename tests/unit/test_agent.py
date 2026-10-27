@@ -210,6 +210,17 @@ class TestAgentLoop:
         assert result.usage.total == 150
         assert result.cost_usd == pytest.approx(calculate_cost("gpt-4o-mini", 100, 50))
 
+    async def test_truncation_is_reported(self, settings: Settings) -> None:
+        cut = LLMResponse(text="respuesta cort", finish_reason="length")
+        result = await make_agent(ScriptedProvider([cut]), settings).process_query("Hello")
+        assert result.truncated is True
+
+    async def test_complete_answers_are_not_flagged(self, settings: Settings) -> None:
+        result = await make_agent(ScriptedProvider([text_response("ok")]), settings).process_query(
+            "x"
+        )
+        assert result.truncated is False
+
     async def test_system_prompt_and_tools_are_sent(self, settings: Settings) -> None:
         provider = ScriptedProvider([text_response("ok")])
         await make_agent(provider, settings).process_query("Hello")
