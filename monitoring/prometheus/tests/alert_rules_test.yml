@@ -62,6 +62,25 @@ tests:
         alertname: HighErrorRate
         exp_alerts: []
 
+  - name: first errors after a clean period are counted because series start at zero
+    interval: 1m
+    input_series:
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="200"}'
+        values: "0+10x30"
+      - series: 'agent_http_requests_total{method="POST",route="/chat",status="502"}'
+        values: "0x15 10+10x15" # pre-created at 0, then the first failures appear
+    alert_rule_test:
+      - eval_time: 22m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: ai-agent
+            exp_annotations:
+              summary: "More than 5 % of /chat requests are failing"
+              description: "5xx ratio over the last 5 minutes: 50%."
+              runbook: "docs/runbook.md#high-error-rate"
+
   # ---------------------------------------------------------------- AgentDown
   - name: scrape target down fires after one minute
     interval: 1m
@@ -225,3 +244,31 @@ tests:
               summary: "New error type: content_filtered"
               description: "This error type was not seen in the previous 7 days; check Sentry for the stack trace."
               runbook: "docs/runbook.md#new-error-type"
+
+  - name: a known error type is reported on its very first occurrence (series pre-created at zero)
+    interval: 5m
+    input_series:
+      - series: 'agent_errors_total{error_type="content_filtered"}'
+        values: "0x2100 3+3x20"
+    alert_rule_test:
+      - eval_time: 10505m # the first sample with errors; the zero samples are still in the window
+        alertname: NewErrorTypeSeen
+        exp_alerts:
+          - exp_labels:
+              severity: info
+              service: ai-agent
+              error_type: content_filtered
+            exp_annotations:
+              summary: "New error type: content_filtered"
+              description: "This error type was not seen in the previous 7 days; check Sentry for the stack trace."
+              runbook: "docs/runbook.md#new-error-type"
+
+  - name: LIMITATION an unlisted error type that first appears at 1 loses its first increment
+    interval: 5m
+    input_series:
+      - series: 'agent_errors_total{error_type="SomethingNew"}'
+        values: "_x2100 3"
+    alert_rule_test:
+      - eval_time: 10505m
+        alertname: NewErrorTypeSeen
+        exp_alerts: []

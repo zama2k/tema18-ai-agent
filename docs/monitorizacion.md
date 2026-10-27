@@ -39,12 +39,14 @@ LangFuse y Sentry se activan **solo** si hay claves (`LANGFUSE_PUBLIC_KEY` + `LA
 
 Las 7 reglas tienen anotaciones y un enlace al [runbook](runbook.md). Los umbrales son puntos de partida: ajústalos con dos semanas de datos reales.
 
+**Series inicializadas a 0 y su límite.** Prometheus toma la primera muestra de una serie como línea base de `rate()`/`increase()`: una serie que aparece ya con valor 1 pierde ese primer incremento. Por eso el agente crea a 0 al arrancar los contadores de los valores de etiqueta conocidos (`agent_errors_total` por `error_type`, `agent_http_requests_total` de `/chat` por estado, `agent_requests_total`, `agent_tokens_total`) y así el primer 5xx o el primer error de un tipo conocido sí cuenta para `HighErrorRate` y `NewErrorTypeSeen`. **Limitación:** un `error_type` que no esté en esa lista (una excepción nueva que no herede de `AgentBaseException`) sigue perdiendo su primer incremento; ahí el respaldo es Sentry. Hay un test de reglas que lo demuestra.
+
 `QualityDegraded` es monitorización **semántica**: un servicio puede tener latencia y errores perfectos mientras sus respuestas empeoran (cambio de modelo, deriva del prompt). El workflow `llm-eval-nightly.yml` evalúa cada día el modelo real con el juez y avisa por Discord; el informe `latest.json` también puede montarse en el agente para alimentar el gauge.
 
 ## Probar las reglas y el circuito de alertas
 
 ```bash
-# Reglas: sintaxis y 14 tests unitarios con promtool (sin levantar nada)
+# Reglas: sintaxis y 17 tests unitarios con promtool (sin levantar nada)
 docker run --rm -v "$PWD/monitoring/prometheus:/p:ro" --entrypoint promtool prom/prometheus:v3.15.1 test rules /p/tests/alert_rules_test.yml
 
 # De extremo a extremo (agente + Prometheus + Alertmanager + Grafana + receptor): ~1 min

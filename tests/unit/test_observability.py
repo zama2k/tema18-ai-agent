@@ -14,6 +14,7 @@ import pytest
 from pytest_socket import SocketConnectBlockedError
 
 from src.config import Settings
+from src.exceptions import AgentBaseException
 from src.models import TokenUsage
 from src.observability import (
     MAX_TRACED_CHARS,
@@ -24,6 +25,7 @@ from src.observability import (
     configure_logging,
     create_tracer,
     init_sentry,
+    known_error_types,
     langfuse_mask,
     mask_pii,
     request_id_var,
@@ -103,6 +105,33 @@ class TestMetrics:
         text = metrics.render().decode()
         assert 'agent_errors_total{error_type="timeout"} 1.0' in text
         assert 'outcome="error"' in text
+
+    def test_known_series_start_at_zero(self) -> None:
+        """rate()/increase() ignore the first sample of a series: pre-create it at 0."""
+        text = Metrics().render().decode()
+        for error_type in ("timeout", "content_filtered", "ProviderError", "unexpected"):
+            assert f'agent_errors_total{{error_type="{error_type}"}} 0.0' in text
+        for status in ("200", "422", "500", "502", "504"):
+            assert (
+                f'agent_http_requests_total{{method="POST",route="/chat",status="{status}"}} 0.0'
+                in text
+            )
+        assert 'agent_requests_total{agent_route="deep_research",outcome="error"} 0.0' in text
+        assert 'agent_tokens_total{direction="input"} 0.0' in text
+
+    def test_every_agent_exception_class_is_a_known_error_type(self) -> None:
+        names = set(known_error_types())
+        stack = [AgentBaseException]
+        while stack:
+            cls = stack.pop()
+            assert cls.__name__ in names, f"{cls.__name__} would lose its first increment"
+            stack.extend(cls.__subclasses__())
+        assert {"timeout", "max_iterations", "content_filtered", "unexpected"} <= names
+
+    def test_unlisted_error_types_still_work(self) -> None:
+        metrics = Metrics()
+        metrics.record_error("chat_with_tools", "SomethingNew")
+        assert 'agent_errors_total{error_type="SomethingNew"} 1.0' in metrics.render().decode()
 
     def test_registries_are_isolated(self) -> None:
         first, second = Metrics(), Metrics()

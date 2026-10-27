@@ -11,6 +11,13 @@
 # | NewErrorTypeSeen     | an error type never seen in the last 7 days | Sentry             |
 # | AgentDown            | the scrape target is down for 1 min         | CloudWatch         |
 #
+# Counters are pre-created at 0 on startup (src/observability.py::Metrics) for every known label
+# value. Prometheus uses the first sample of a series as the baseline of rate()/increase(), so a
+# series that first appears with value 1 loses that first increment. With the pre-created zero the
+# first 5xx or the first error of a known type is counted. LIMITATION: an error_type that is not
+# in the known list (a new exception class not derived from AgentBaseException) still loses its
+# first increment; Sentry is the safety net for those.
+#
 # Thresholds are starting points: tune them with two weeks of real baseline data.
 groups:
   - name: ai-agent-availability
@@ -100,6 +107,7 @@ groups:
           description: "Possible prompt injection or runaway tool loop; tokens in the last hour: {{ $value | printf \"%.0f\" }}."
           runbook: "docs/runbook.md#token-spike"
 
+      # Relies on the zero-initialised agent_errors_total series (see the header comment).
       - alert: NewErrorTypeSeen
         expr: |
           (sum by (error_type) (increase(agent_errors_total[15m])) > 0)

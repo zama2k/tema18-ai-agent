@@ -85,5 +85,5 @@ Cada decisión sigue el mismo esquema: qué se eligió, por qué y qué se pierd
 | `StrictHostKeyChecking=no` | clave de host fijada |
 | Despliegue simulado con `echo` | despliegue SSH real contra un host simulado, con test de cero caídas y de fallo |
 | "Tests de LLM" que solo miran palabras clave | reglas deterministas + juez con esquema estricto + meta-test del juez + umbrales de calidad |
-| Alertas sin probar | 14 tests de reglas con `promtool` y una alerta disparada y recibida de verdad |
+| Alertas sin probar | 17 tests de reglas con `promtool` y una alerta disparada y recibida de verdad |
 | Cobertura sin umbral | `--cov-fail-under=80` (medido: 98,9 %) |

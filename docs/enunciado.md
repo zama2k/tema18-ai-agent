@@ -91,7 +91,7 @@ Las desviaciones están marcadas con **(D)** y justificadas en la última column
 | Capa 1 equivalente ejecutable | Prometheus + Alertmanager + Grafana (`monitoring/`) | Es lo que se prueba de verdad en local |
 | Capa 2, LangFuse (traces, generations, scores, coste) | `src/observability.py::LangfuseTracer` | Texto enmascarado con `mask_pii`; scores del juez enviados desde `evals/run_eval.py`. Probado con mocks; no contra un servidor LangFuse real |
 | Capa 3, Sentry | `src/observability.py::init_sentry`, `scrub_event` | Solo con `SENTRY_DSN`; limpia PII |
-| Matriz de alertas | `monitoring/prometheus/alert_rules.yml` | 7 alertas; error rate, P95, coste diario, calidad, pico de tokens, error nuevo, caída. 14 tests de reglas con `promtool` |
+| Matriz de alertas | `monitoring/prometheus/alert_rules.yml` | 7 alertas; error rate, P95, coste diario, calidad, pico de tokens, error nuevo, caída. 17 tests de reglas con `promtool` |
 | Alerta "cold starts / throttles" | `ai-agent-lambda-throttles` en CloudWatch | |
 | Notificaciones | `monitoring/alertmanager/` | Discord con `webhook_url_file`; receptor local para pruebas |
 | Calidad degradada (avg_score < 0.7 en 1 h) | gauge `agent_quality_score` alimentado por el informe de evaluación + `llm-eval-nightly.yml` | Monitorización semántica |

@@ -26,6 +26,7 @@ from typing import Any
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
 from src.config import Settings
+from src.exceptions import AgentBaseException
 from src.models import TokenUsage
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,24 @@ def configure_logging(level: str = "INFO", version: str = "unknown") -> None:
     root.setLevel(level)
 
 
+# error_type labels written by the API besides the exception class names (see api.chat)
+_EXTRA_ERROR_TYPES = ("timeout", "max_iterations", "content_filtered", "unexpected")
+CHAT_STATUSES = ("200", "422", "500", "502", "504")
+AGENT_ROUTES = ("chat_with_tools", "deep_research")
+
+
+def _subclass_names(cls: type[Exception]) -> set[str]:
+    names = {cls.__name__}
+    for child in cls.__subclasses__():
+        names |= _subclass_names(child)
+    return names
+
+
+def known_error_types() -> list[str]:
+    """Every ``error_type`` label value the service can emit."""
+    return sorted(_subclass_names(AgentBaseException) | set(_EXTRA_ERROR_TYPES))
+
+
 class Metrics:
     """Prometheus metrics of the service, on a private registry (test friendly)."""
 
@@ -134,6 +153,25 @@ class Metrics:
             registry=self.registry,
         )
         self.quality.set_function(lambda: _read_quality(quality_report_file))
+        self._initialise_known_series()
+
+    def _initialise_known_series(self) -> None:
+        """Create the known label combinations at 0 so the first event is not lost.
+
+        Prometheus' ``rate``/``increase`` use the first sample of a series as its baseline, so a
+        series that first appears with value 1 contributes nothing: the first error would never
+        trigger HighErrorRate or NewErrorTypeSeen. Pre-creating the series at 0 fixes that for every
+        label value listed here; an error type that is NOT listed still loses its first increment.
+        """
+        for error_type in known_error_types():
+            self.errors.labels(error_type)
+        for status in CHAT_STATUSES:
+            self.http_requests.labels("POST", "/chat", status)
+        for agent_route in AGENT_ROUTES:
+            for outcome in ("success", "error"):
+                self.agent_requests.labels(agent_route, outcome)
+        self.tokens.labels("input")
+        self.tokens.labels("output")
 
     def record_result(self, route: str, usage: TokenUsage, cost_usd: float) -> None:
         """Record a successful agent query."""

@@ -15,7 +15,7 @@ Qué está comprobado y qué no, para no tener que adivinarlo:
 | 251 tests unitarios, 98,9 % de cobertura (Python 3.11 y 3.12), `ruff`, `mypy` | Las ejecuciones de **GitHub Actions** y las insignias: se añadirán al publicar el repositorio |
 | 25 tests de integración y la evaluación con juez **contra Azure OpenAI real** | El **CD en GitHub**: los workflows pasan `actionlint` y sus scripts se ejecutan en local, pero no se han lanzado en un runner |
 | Despliegue blue/green real por SSH contra un host simulado: cambio sin una sola petición fallida, rollback y versión rota rechazada | El despliegue contra un **EC2 real** (no hay cuenta de AWS) |
-| Alerta `HighErrorRate` disparada con errores reales y recibida en el receptor local; 14 tests de reglas con `promtool` | **Bedrock** real: el código existe y se prueba con `botocore.stub.Stubber`, no contra AWS. Haiku 3 de Anthropic está fuera de servicio en Bedrock desde el 10-sep-2026 |
+| Alerta `HighErrorRate` disparada con errores reales y recibida en el receptor local; 17 tests de reglas con `promtool` | **Bedrock** real: el código existe y se prueba con `botocore.stub.Stubber`, no contra AWS. Haiku 3 de Anthropic está fuera de servicio en Bedrock desde el 10-sep-2026 |
 | `actionlint` y `shellcheck` sin avisos | **LangFuse** y **Sentry** reales: probados con mocks (no hay claves). **Discord** real: probado contra un receptor local |
 | | Las alarmas de **CloudWatch**: validadas como peticiones `PutMetricAlarm`, no aplicadas |
 | | Las URL públicas de staging y producción: se añadirán tras publicar |
